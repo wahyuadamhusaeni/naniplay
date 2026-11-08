@@ -201,8 +201,12 @@
   }
   function toggleFull() {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
-    if (box && box.requestFullscreen) box.requestFullscreen().catch(function () {});
-    else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+    function goVideo() {
+      if (video.requestFullscreen) video.requestFullscreen().catch(function () {});
+      else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
+    }
+    if (box && box.requestFullscreen) box.requestFullscreen().catch(goVideo);
+    else goVideo();
   }
   function syncVolIcon() {
     if (!pVolIco) return;
@@ -552,7 +556,7 @@
         }).catch(function () {});
       }
       activateSub(row.dataset.id);
-      subSay(row.dataset.id ? "Subtitle aktif: " + (row.dataset.name || "") + ". Bila timing meleset, geser di bagian trek aktif." : "Subtitle dimatikan.");
+      subSay(row.dataset.id ? "Subtitle aktif: " + (row.dataset.name || "") + ". Bila timing meleset, buka bagian Kelola subtitle di bawah." : "Subtitle dimatikan.");
     });
     var subMinus = document.getElementById("subMinus");
     var subPlus = document.getElementById("subPlus");

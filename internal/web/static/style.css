@@ -591,3 +591,16 @@ body.no-scroll { overflow: hidden; }
   .sub-panel { padding: .85rem .8rem .95rem; }
   .sub-offset-label { display: none; }
 }
+
+/* v1.4.1: bar kontrol muat di layar HP (tombol tak lagi terdorong keluar) */
+@media (max-width: 720px) {
+  .np-row { gap: .1rem; }
+  .np-btn { min-width: 36px; height: 38px; padding: 0 .25rem; }
+  .np-prev-ep, .np-pip { display: none !important; }
+}
+@media (max-width: 560px) {
+  .np-speedwrap { display: none; }
+}
+/* Panel subtitle: isi bagian Kelola berjarak rapi */
+.sub-tools-body > * + * { margin-top: .65rem; }
+.sub-tools-body .sub-actions { margin-top: 0; }

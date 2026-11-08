@@ -57,7 +57,7 @@
           <button class="np-btn" id="pMute" type="button" aria-label="Bisukan" data-tip="Bisukan (M)"><svg class="np-ico"><use id="pVolIco" href="#i-vol-high"/></svg></button>
           <input type="range" id="pVol" min="0" max="100" value="100" aria-label="Volume">
         </span>
-        {{if .PrevEp}}<a class="np-btn" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}" aria-label="Episode sebelumnya" data-tip="Episode {{.PrevEp}}"><svg class="np-ico"><use href="#i-prev"/></svg></a>{{end}}
+        {{if .PrevEp}}<a class="np-btn np-prev-ep" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}" aria-label="Episode sebelumnya" data-tip="Episode {{.PrevEp}}"><svg class="np-ico"><use href="#i-prev"/></svg></a>{{end}}
         {{if .NextEp}}<a class="np-btn" href="/watch/{{.Anime.ID}}/{{.NextEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}" aria-label="Episode berikutnya" data-tip="Episode {{.NextEp}}"><svg class="np-ico"><use href="#i-next"/></svg></a>{{end}}
         <span class="np-time"><span id="pCur">0:00</span> / <span id="pDur">0:00</span></span>
         <span class="np-vtitle">{{.Anime.Display}} · Episode {{.Episode}}</span>
@@ -74,7 +74,7 @@
           <span class="p-menu" id="pQualityMenu" hidden></span>
         </span>
         <button class="np-btn" id="pCC" type="button" aria-label="Subtitle" data-tip="Pengaturan subtitle"><svg class="np-ico"><use href="#i-cc"/></svg></button>
-        <button class="np-btn" id="pPiP" type="button" aria-label="Gambar dalam gambar" data-tip="Gambar-dalam-gambar (PiP)"><svg class="np-ico"><use href="#i-pip"/></svg></button>
+        <button class="np-btn np-pip" id="pPiP" type="button" aria-label="Gambar dalam gambar" data-tip="Gambar-dalam-gambar (PiP)"><svg class="np-ico"><use href="#i-pip"/></svg></button>
         <button class="np-btn" id="pFull" type="button" aria-label="Layar penuh" data-tip="Layar penuh (F)"><svg class="np-ico"><use id="pFullIco" href="#i-full"/></svg></button>
       </div>
     </div>
@@ -87,30 +87,30 @@
       <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
     </div>
     <div class="sub-tracks" id="subTrackList"></div>
-    <div class="sub-actions" id="subActions">
-      <button type="button" id="subTranslate" class="btn btn-ghost" hidden>🌐 Terjemahkan ke Indonesia</button>
-      <button type="button" id="subTranslateAI" class="btn btn-ghost" hidden>🤖 Fansub AI</button>
-      <span class="sub-offset" title="Geser timing subtitle bila tidak sinkron">
-        <span class="sub-offset-label">Geser timing</span>
-        <button type="button" id="subMinus">−0,5s</button>
-        <span id="subOffsetVal">0,0s</span>
-        <button type="button" id="subPlus">+0,5s</button>
-      </span>
-      <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus Trek</button>
-    </div>
     <div class="sub-get">
       <button type="button" id="subSearch" class="btn btn-play sub-search-btn">🔍 Cari Subtitle Online</button>
-      <div class="sub-get-row">
-        <label class="btn btn-ghost sub-upload-label">⬆ Unggah File<input type="file" id="subFile" accept=".srt,.vtt,.ass,.ssa" hidden></label>
-        <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
-        <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
-      </div>
     </div>
     <div id="subResults" class="sub-results"></div>
     <p class="sub-status" id="subStatus"></p>
     <details class="sub-tools">
-      <summary>Alat lanjutan — gabung trek &amp; sinkronkan timing</summary>
+      <summary>⚙ Kelola subtitle — terjemahan, unggah &amp; alat lanjutan</summary>
       <div class="sub-tools-body">
+        <div class="sub-actions" id="subActions">
+          <button type="button" id="subTranslate" class="btn btn-ghost" hidden>🌐 Terjemahkan ke Indonesia</button>
+          <button type="button" id="subTranslateAI" class="btn btn-ghost" hidden>🤖 Fansub AI</button>
+          <span class="sub-offset" title="Geser timing subtitle bila tidak sinkron">
+            <span class="sub-offset-label">Geser timing</span>
+            <button type="button" id="subMinus">−0,5s</button>
+            <span id="subOffsetVal">0,0s</span>
+            <button type="button" id="subPlus">+0,5s</button>
+          </span>
+          <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus Trek</button>
+        </div>
+        <div class="sub-get-row">
+          <label class="btn btn-ghost sub-upload-label">⬆ Unggah File<input type="file" id="subFile" accept=".srt,.vtt,.ass,.ssa" hidden></label>
+          <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
+          <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
+        </div>
         <div class="sub-row">
           <select id="subMergeSel"><option value="">Trek kedua / referensi…</option></select>
           <button type="button" id="subMergeBtn" class="btn btn-ghost">⿻ Gabung ke Trek Aktif</button>
@@ -134,6 +134,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=14000"></script>
-<script src="/static/picker.js?v=14000"></script>
+<script src="/static/player.js?v=14100"></script>
+<script src="/static/picker.js?v=14100"></script>
 {{end}}
