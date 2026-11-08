@@ -4,6 +4,19 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.8.1] — 2026-11-08
+
+### Diperbaiki
+- **Tampilan mobile rusak setelah pembaruan 0.8.0**: berkas CSS/JS kini
+  diberi versi pada URL-nya (`?v=801`) — sebelumnya peramban/edge dapat
+  menyajikan CSS lama dari cache (masa simpan 4 jam) untuk HTML baru,
+  sehingga drawer menu tampil sebagai blok kedua di bawah header dan
+  control pemain tidak ber-gaya.
+- Pengaman tata letak mobile: halaman tidak bisa lagi bergeser
+  menyamping (overflow-x dikunci), drawer yang tertutup tidak pernah
+  terlukis, dan pita peringatan tidak lagi menyisakan celah setinggi
+  header di halaman detail.
+
 ## [0.8.0] — 2026-11-08
 
 Rilis pengalaman menonton (dari masukan pengguna) + AI Fansub.
