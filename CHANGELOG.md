@@ -4,6 +4,14 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.9] — 2026-11-08
+
+### Ditambah
+- Endpoint diagnostik sementara `/api/indo-pure` + `/api/indo-pure-doc`:
+  dokumen embed disajikan byte-per-byte tanpa penulisan ulang dan
+  tanpa penambal jaringan, untuk mengisolasi penyebab "Slug is not
+  found" (konteks asal vs campur tangan proxy).
+
 ## [1.9.8] — 2026-11-08
 
 ### Diperbaiki
