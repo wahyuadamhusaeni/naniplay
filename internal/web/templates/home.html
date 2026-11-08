@@ -1,0 +1,94 @@
+{{define "title"}}NaniPlay — Nani?! Play.{{end}}
+{{define "content"}}
+{{if .Err}}<div class="alert">Gagal memuat katalog: {{.Err}}</div>{{end}}
+
+{{with .Hero}}
+<section class="hero" style="background-image:url('{{if .Banner}}{{.Banner}}{{else}}{{.Cover}}{{end}}')">
+  <div class="hero-shade"></div>
+  <div class="hero-body">
+    <p class="hero-kicker">#1 SEDANG TRENDING</p>
+    <h1 class="hero-title">{{.Display}}</h1>
+    <p class="hero-meta">
+      {{if .Score}}<span class="score">★ {{.Score}}%</span>{{end}}
+      {{if .SeasonYear}}<span>{{.SeasonYear}}</span>{{end}}
+      {{if .Format}}<span>{{.Format}}</span>{{end}}
+      {{if .Episodes}}<span>{{.Episodes}} episode</span>{{end}}
+    </p>
+    <p class="hero-desc">{{.Description}}</p>
+    <div class="hero-actions">
+      <a class="btn btn-play" href="/anime/{{.ID}}">▶&nbsp; Putar</a>
+      <a class="btn btn-ghost" href="/anime/{{.ID}}">ⓘ&nbsp; Info Selengkapnya</a>
+    </div>
+  </div>
+</section>
+{{end}}
+
+{{if .Continue}}
+<section class="rail">
+  <h2>Lanjutkan Menonton</h2>
+  <div class="rail-track">
+    {{range .Continue}}
+    <a class="card card-wide" href="/watch/{{.AnilistID}}/{{.Episode}}">
+      <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}">
+        <span class="card-badge">Ep {{.Episode}}</span>
+        <span class="card-resume">▶ Lanjut</span>
+      </div>
+      <div class="progress"><i style="width:{{pct .Progress}}%"></i></div>
+      <p class="card-title">{{.Title}}</p>
+    </a>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .Trending}}
+<section class="rail">
+  <h2>Sedang Trending</h2>
+  <div class="rail-track">
+    {{range .Trending}}{{template "card" .}}{{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .Season}}
+<section class="rail">
+  <h2>Populer {{.SeasonName}} {{.Year}}</h2>
+  <div class="rail-track">
+    {{range .Season}}{{template "card" .}}{{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .Favorites}}
+<section class="rail">
+  <h2>Daftar Saya</h2>
+  <div class="rail-track">
+    {{range .Favorites}}
+    <a class="card" href="/anime/{{.AnilistID}}">
+      <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}"></div>
+      <p class="card-title">{{.Title}}</p>
+    </a>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .Top}}
+<section class="rail">
+  <h2>Rating Tertinggi Sepanjang Masa</h2>
+  <div class="rail-track">
+    {{range .Top}}{{template "card" .}}{{end}}
+  </div>
+</section>
+{{end}}
+{{end}}
+
+{{define "card"}}
+<a class="card" href="/anime/{{.ID}}">
+  <div class="card-img"><img loading="lazy" src="{{.Cover}}" alt="{{.Display}}">
+    {{if .NextEpisode}}<span class="card-badge">Ep {{.NextEpisode}} segera</span>{{end}}
+  </div>
+  <p class="card-title">{{.Display}}</p>
+  <p class="card-meta">{{if .Score}}★ {{.Score}}% · {{end}}{{.SeasonYear}}</p>
+</a>
+{{end}}
