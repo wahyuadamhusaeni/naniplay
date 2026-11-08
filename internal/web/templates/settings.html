@@ -28,6 +28,21 @@
     </div>
   </form>
 
+  <form method="post" action="/pengaturan" class="settings-form">
+    <h3>Film &amp; Series (IDLIX)</h3>
+    <label class="settings-check">
+      <input type="checkbox" name="idlix_on" value="1"{{if .IdlixOn}} checked{{end}}>
+      Aktifkan seksi Film &amp; Series
+    </label>
+    <label>Alamat basis IDLIX
+      <input type="url" name="idlix_base" value="{{.IdlixBase}}" placeholder="https://z2.idlixku.com">
+    </label>
+    <p class="dim small">Katalog film &amp; series tiba bertahap mulai v0.10.0; mengaktifkan ini menampilkan seksinya di menu. Alamat dapat diganti bila domain IDLIX berpindah.</p>
+    <div class="settings-row">
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+  </form>
+
   <div class="settings-card">
     <h3>Versi</h3>
     <p>NaniPlay <strong>v{{.Version}}</strong>{{if .Latest}} · Rilis terbaru: <strong>{{.Latest}}</strong>{{end}}</p>

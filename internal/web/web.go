@@ -41,6 +41,7 @@ type Server struct {
 	ani       *anichan.Client
 	providers map[string]source.Provider
 	db        *store.Store
+	idlixBase string
 	tpl       map[string]*template.Template
 
 	mu       sync.Mutex
@@ -61,12 +62,15 @@ type matchEntry struct {
 // New builds a Server. Saved otakudesu_base / hianime_base settings
 // override the configured defaults, so a source domain change never
 // needs a rebuild.
-func New(db *store.Store, otakuBase, hiBase string) (*Server, error) {
+func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) {
 	if saved := db.GetSetting("otakudesu_base"); saved != "" {
 		otakuBase = saved
 	}
 	if saved := db.GetSetting("hianime_base"); saved != "" {
 		hiBase = saved
+	}
+	if saved := db.GetSetting("idlix_base"); saved != "" {
+		idlixBase = saved
 	}
 	otaku := otakudesu.New(otakuBase)
 	hi := hianime.New(hiBase)
@@ -82,12 +86,13 @@ func New(db *store.Store, otakuBase, hiBase string) (*Server, error) {
 			hi.Name():    hi,
 			ani.Name():   ani,
 		},
-		db:       db,
-		tpl:      map[string]*template.Template{},
-		matches:  map[string]matchEntry{},
-		episodes: map[string][]source.Episode{},
+		db:        db,
+		idlixBase: idlixBase,
+		tpl:       map[string]*template.Template{},
+		matches:   map[string]matchEntry{},
+		episodes:  map[string][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "cinema"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
@@ -102,6 +107,22 @@ func New(db *store.Store, otakuBase, hiBase string) (*Server, error) {
 	return s, nil
 }
 
+// baseData is embedded in every page's data so the shared base
+// template can render feature-gated navigation (Film/Series sections
+// appear only when the IDLIX catalog is enabled).
+type baseData struct {
+	IdlixOn bool
+}
+
+func (s *Server) base() baseData {
+	return baseData{IdlixOn: s.idlixEnabled()}
+}
+
+// idlixEnabled reports whether the IDLIX movie/series catalog is on.
+func (s *Server) idlixEnabled() bool {
+	return s.db.GetSetting("idlix_on") == "1"
+}
+
 // Handler returns the root HTTP handler.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -114,6 +135,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /genre", s.genreIndex)
 	mux.HandleFunc("GET /genre/{name}", s.genrePage)
 	mux.HandleFunc("GET /jadwal", s.schedulePage)
+	mux.HandleFunc("GET /film", s.filmPage)
+	mux.HandleFunc("GET /series", s.seriesPage)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
 	mux.HandleFunc("GET /pengaturan", s.settingsPage)
@@ -161,6 +184,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // ---------- pages ----------
 
 type homeData struct {
+	baseData
 	Hero       *anilist.Anime
 	Trending   []anilist.Anime
 	Season     []anilist.Anime
@@ -174,11 +198,12 @@ type homeData struct {
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		s.render(w, "notfound", nil)
+		s.render(w, "notfound", s.base())
 		return
 	}
 	ctx := r.Context()
-	data := homeData{}
+	data := homeData{
+		baseData: s.base()}
 	trending, err := s.anilist.Trending(ctx, 18)
 	if err != nil {
 		data.Err = err.Error()
@@ -220,6 +245,7 @@ func seasonLabel(s string) string {
 }
 
 type detailData struct {
+	baseData
 	Anime        *anilist.Anime
 	IsFavorite   bool
 	Series       *source.Series
@@ -242,20 +268,21 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := s.anilist.Detail(r.Context(), id)
 	if err != nil {
-		s.render(w, "notfound", nil)
+		s.render(w, "notfound", s.base())
 		return
 	}
 	forced := validSrc(r.URL.Query().Get("src"))
 	data := detailData{
+		baseData:   s.base(),
 		Anime:      a,
-		IsFavorite: s.db.IsFavorite(id),
+		IsFavorite: s.db.IsFavorite(store.AnimeKey(id)),
 		SrcSel:     forced,
 		PagePath:   fmt.Sprintf("/anime/%d", id),
 	}
 	if rels, err := s.anilist.Relations(r.Context(), id); err == nil {
 		data.Relations = rels
 	}
-	if watched, err := s.db.EpisodeProgress(id); err == nil {
+	if watched, err := s.db.EpisodeProgress(store.AnimeKey(id)); err == nil {
 		data.Watched = watched
 	}
 	series, eps, provider := s.matchEpisodes(r.Context(), a, forced)
@@ -352,6 +379,7 @@ func providerDisplay(id string) string {
 }
 
 type watchData struct {
+	baseData
 	Anime        *anilist.Anime
 	Episode      int
 	CurrentEp    int
@@ -377,18 +405,19 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 	}
 	a, err := s.anilist.Detail(r.Context(), id)
 	if err != nil {
-		s.render(w, "notfound", nil)
+		s.render(w, "notfound", s.base())
 		return
 	}
 	forced := validSrc(r.URL.Query().Get("src"))
 	data := watchData{
+		baseData:  s.base(),
 		Anime:     a,
 		Episode:   ep,
 		CurrentEp: ep,
 		SrcSel:    forced,
 		PagePath:  fmt.Sprintf("/watch/%d/%d", id, ep),
 	}
-	if watched, err := s.db.EpisodeProgress(id); err == nil {
+	if watched, err := s.db.EpisodeProgress(store.AnimeKey(id)); err == nil {
 		data.Watched = watched
 	}
 	series, eps, providerName := s.matchEpisodes(r.Context(), a, forced)
@@ -435,7 +464,7 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 		s.importStreamSubtitles(r.Context(), a, ep, stream)
 	}
 	data.ProxyURL = proxyURLFor(stream)
-	if h, err := s.db.HistoryFor(id, ep); err == nil && h != nil {
+	if h, err := s.db.HistoryFor(store.AnimeKey(id), ep); err == nil && h != nil {
 		data.SavedPos = h.Position
 	}
 	s.render(w, "watch", data)
@@ -447,12 +476,14 @@ func proxyURLFor(st *source.Stream) string {
 }
 
 type searchData struct {
+	baseData
 	Query   string
 	Results []anilist.Anime
 	Err     string
 }
 
 type genreIndexData struct {
+	baseData
 	Genres []string
 }
 
@@ -464,10 +495,12 @@ func (s *Server) genreIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		genres = append(genres, g)
 	}
-	s.render(w, "genre", genreIndexData{Genres: genres})
+	s.render(w, "genre", genreIndexData{
+		baseData: s.base(), Genres: genres})
 }
 
 type genreListData struct {
+	baseData
 	Genre   string
 	Results []anilist.Anime
 	Page    int
@@ -492,7 +525,8 @@ func (s *Server) genrePage(w http.ResponseWriter, r *http.Request) {
 	if err != nil || page < 1 {
 		page = 1
 	}
-	data := genreListData{Genre: name, Page: page}
+	data := genreListData{
+		baseData: s.base(), Genre: name, Page: page}
 	res, hasNext, err := s.anilist.ByGenre(r.Context(), name, page)
 	if err != nil {
 		data.Err = err.Error()
@@ -505,7 +539,8 @@ func (s *Server) genrePage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	data := searchData{Query: q}
+	data := searchData{
+		baseData: s.base(), Query: q}
 	if q != "" {
 		res, err := s.anilist.Search(r.Context(), q, 24)
 		if err != nil {
@@ -518,6 +553,7 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 }
 
 type listData struct {
+	baseData
 	Title     string
 	Favorites []store.Favorite
 	History   []store.HistoryEntry
@@ -525,12 +561,14 @@ type listData struct {
 
 func (s *Server) myList(w http.ResponseWriter, r *http.Request) {
 	favs, _ := s.db.Favorites()
-	s.render(w, "list", listData{Title: "Daftar Saya", Favorites: favs})
+	s.render(w, "list", listData{
+		baseData: s.base(), Title: "Daftar Saya", Favorites: favs})
 }
 
 func (s *Server) historyPage(w http.ResponseWriter, r *http.Request) {
 	hist, _ := s.db.AllHistory(60)
-	s.render(w, "list", listData{Title: "Riwayat Tontonan", History: hist})
+	s.render(w, "list", listData{
+		baseData: s.base(), Title: "Riwayat Tontonan", History: hist})
 }
 
 // ---------- actions & API ----------
@@ -562,6 +600,7 @@ func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request) {
 }
 
 type historyPayload struct {
+	Key       string  `json:"key"`
 	AnilistID int     `json:"anilistId"`
 	Title     string  `json:"title"`
 	Poster    string  `json:"poster"`
@@ -572,12 +611,20 @@ type historyPayload struct {
 
 func (s *Server) apiSaveHistory(w http.ResponseWriter, r *http.Request) {
 	var p historyPayload
-	if err := json.NewDecoder(r.Body).Decode(&p); err != nil || p.AnilistID == 0 {
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "payload tidak valid"})
+		return
+	}
+	key := p.Key
+	if key == "" && p.AnilistID > 0 {
+		key = store.AnimeKey(p.AnilistID)
+	}
+	if key == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "payload tidak valid"})
 		return
 	}
 	err := s.db.SaveHistory(store.HistoryEntry{
-		AnilistID: p.AnilistID, Title: p.Title, Poster: p.Poster,
+		Key: key, Title: p.Title, Poster: p.Poster,
 		Episode: p.Episode, Position: p.Position, Duration: p.Duration,
 	})
 	if err != nil {
@@ -605,6 +652,7 @@ type schedDay struct {
 }
 
 type jadwalData struct {
+	baseData
 	Days []schedDay
 	Err  string
 }
@@ -614,7 +662,8 @@ func (s *Server) schedulePage(w http.ResponseWriter, r *http.Request) {
 	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, wib)
 	to := from.AddDate(0, 0, 7)
 	entries, err := s.anilist.AiringSchedule(r.Context(), from, to)
-	data := jadwalData{}
+	data := jadwalData{
+		baseData: s.base()}
 	if err != nil {
 		data.Err = err.Error()
 		s.render(w, "jadwal", data)
@@ -648,7 +697,10 @@ func (s *Server) schedulePage(w http.ResponseWriter, r *http.Request) {
 // ---------- settings ----------
 
 type settingsData struct {
+	baseData
 	OtakuBase string
+	IdlixBase string
+	IdlixOn   bool
 	LLMBase   string
 	LLMModel  string
 	LLMKeySet bool
@@ -671,7 +723,10 @@ func (s *Server) llmConfig() subtitle.LLMConfig {
 func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	latest := s.latestRelease(r.Context())
 	data := settingsData{
+		baseData:  s.base(),
 		OtakuBase: s.otaku.Base(),
+		IdlixBase: s.idlixBase,
+		IdlixOn:   s.idlixEnabled(),
 		LLMBase:   s.db.GetSetting("llm_base"),
 		LLMModel:  s.db.GetSetting("llm_model"),
 		LLMKeySet: s.db.GetSetting("llm_key") != "",
@@ -693,7 +748,8 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 	if _, present := r.Form["otakudesu_base"]; present {
 		base := strings.TrimSpace(r.FormValue("otakudesu_base"))
 		if base != "" && !strings.HasPrefix(base, "https://") && !strings.HasPrefix(base, "http://") {
-			data := settingsData{OtakuBase: s.otaku.Base(), Version: Version, Err: "Alamat sumber harus diawali http:// atau https://"}
+			data := settingsData{
+				baseData: s.base(), OtakuBase: s.otaku.Base(), Version: Version, Err: "Alamat sumber harus diawali http:// atau https://"}
 			s.render(w, "settings", data)
 			return
 		}
@@ -716,7 +772,8 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		// the saved key, and the clear checkbox removes it.
 		llmBase := strings.TrimSpace(r.FormValue("llm_base"))
 		if llmBase != "" && !strings.HasPrefix(llmBase, "https://") && !strings.HasPrefix(llmBase, "http://") {
-			data := settingsData{OtakuBase: s.otaku.Base(), LLMBase: llmBase, LLMModel: r.FormValue("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat endpoint AI harus diawali http:// atau https://"}
+			data := settingsData{
+				baseData: s.base(), OtakuBase: s.otaku.Base(), LLMBase: llmBase, LLMModel: r.FormValue("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat endpoint AI harus diawali http:// atau https://"}
 			s.render(w, "settings", data)
 			return
 		}
@@ -728,7 +785,42 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 			_ = s.db.SetSetting("llm_key", key)
 		}
 	}
+	if _, present := r.Form["idlix_base"]; present {
+		// IDLIX catalog (movies & series). The catalog itself arrives
+		// in v0.10.0; the toggle already gates the Film/Series nav.
+		idlixBase := strings.TrimSpace(r.FormValue("idlix_base"))
+		if idlixBase != "" && !strings.HasPrefix(idlixBase, "https://") && !strings.HasPrefix(idlixBase, "http://") {
+			data := settingsData{baseData: s.base(), OtakuBase: s.otaku.Base(), IdlixBase: idlixBase, IdlixOn: s.idlixEnabled(), LLMBase: s.db.GetSetting("llm_base"), LLMModel: s.db.GetSetting("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat IDLIX harus diawali http:// atau https://"}
+			s.render(w, "settings", data)
+			return
+		}
+		_ = s.db.SetSetting("idlix_base", idlixBase)
+		if idlixBase != "" {
+			s.idlixBase = idlixBase
+		}
+		on := ""
+		if r.FormValue("idlix_on") == "1" {
+			on = "1"
+		}
+		_ = s.db.SetSetting("idlix_on", on)
+	}
 	http.Redirect(w, r, "/pengaturan?saved=1", http.StatusSeeOther)
+}
+
+// ---------- cinema (film & series sections) ----------
+
+type cinemaData struct {
+	baseData
+	Kind  string // "Film" atau "Series"
+	Emoji string
+}
+
+func (s *Server) filmPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "cinema", cinemaData{baseData: s.base(), Kind: "Film", Emoji: "🎬"})
+}
+
+func (s *Server) seriesPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, "cinema", cinemaData{baseData: s.base(), Kind: "Series", Emoji: "📺"})
 }
 
 // latestRelease returns the newest published release tag (cached 6h).
@@ -802,7 +894,7 @@ func (s *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
 func (s *Server) apiGetHistory(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(r.PathValue("id"))
 	ep, _ := strconv.Atoi(r.PathValue("ep"))
-	h, err := s.db.HistoryFor(id, ep)
+	h, err := s.db.HistoryFor(store.AnimeKey(id), ep)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return

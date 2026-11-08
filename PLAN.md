@@ -93,11 +93,12 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v0.9.0 — Fondasi gabung
 
-- [ ] Generalisasi kunci media di store: `anilist_id` (int) → kunci media
+- [x] Generalisasi kunci media di store: `anilist_id` (int) → kunci media
       string (`anime:{id}`, `movie:{slug}`, `series:{slug}`) untuk
       history, favorites, dan subtitle_tracks; migrasi data lama otomatis
-- [ ] Seksi navigasi Anime | Film | Series; Pengaturan: aktif/nonaktifkan
-      IDLIX + URL basisnya
+      *(v0.9.0 — terverifikasi pada snapshot DB produksi)*
+- [x] Seksi navigasi Anime | Film | Series; Pengaturan: aktif/nonaktifkan
+      IDLIX + URL basisnya *(v0.9.0)*
 
 ### v0.10.0 — Katalog sinema
 

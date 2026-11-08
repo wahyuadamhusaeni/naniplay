@@ -7,6 +7,7 @@
   var src = video.dataset.src;
   var meta = {
     anilistId: parseInt(video.dataset.anilist, 10),
+    key: video.dataset.key || "",
     title: video.dataset.title || "",
     poster: video.dataset.poster || "",
     episode: parseInt(video.dataset.episode, 10),
@@ -99,6 +100,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        key: meta.key,
         anilistId: meta.anilistId,
         title: meta.title,
         poster: meta.poster,

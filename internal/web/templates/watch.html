@@ -11,7 +11,7 @@
   <div class="player-box" id="playerBox">
     <video id="player" playsinline poster="{{.Anime.Banner}}"
       data-src="{{.ProxyURL}}"
-      data-anilist="{{.Anime.ID}}"
+      data-anilist="{{.Anime.ID}}" data-key="anime:{{.Anime.ID}}"
       data-mal="{{.Anime.IDMal}}"
       data-title="{{.Anime.Display}}"
       data-poster="{{.Anime.Cover}}"
@@ -84,6 +84,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=802"></script>
-<script src="/static/picker.js?v=802"></script>
+<script src="/static/player.js?v=900"></script>
+<script src="/static/picker.js?v=900"></script>
 {{end}}

@@ -4,6 +4,24 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.9.0] — 2026-11-08
+
+### Ditambahkan
+- **Fondasi penggabungan anime + film + series (Fase 5)**: seluruh data
+  pengguna (riwayat, favorit, trek subtitle) kini berkunci *media key*
+  umum — `anime:{id}`, `movie:{slug}`, `series:{slug}` — bukan lagi ID
+  AniList semata. Database lama dimigrasi otomatis di tempat dalam satu
+  transaksi (skema v2, `PRAGMA user_version`); terverifikasi terhadap
+  fixture lama dan snapshot database produksi.
+- **Pengaturan IDLIX**: aktif/nonaktifkan seksi Film & Series dan alamat
+  basisnya (default `https://z2.idlixku.com`, env `IDLIX_BASE`).
+- **Seksi Film & Series** di navigasi (tampil bila IDLIX aktif) dengan
+  halaman penampung informatif; katalognya terhubung di v0.10.0.
+
+### Diubah
+- API riwayat menerima `key` (media key); `anilistId` lama tetap
+  diterima. Pemutar mengirim kunci media di setiap penyimpanan progres.
+
 ## [0.8.2] — 2026-11-08
 
 ### Diperbaiki

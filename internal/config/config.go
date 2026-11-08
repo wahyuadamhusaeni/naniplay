@@ -15,6 +15,7 @@ type Config struct {
 	DataDir   string // NANIPLAY_DATA, default ./data
 	OtakuBase string // OTAKU_BASE, default https://ww2.otakudesu.biz
 	HiBase    string // HIANIME_BASE, default https://hianime.at
+	IdlixBase string // IDLIX_BASE, default https://z2.idlixku.com
 	NoOpen    bool   // NANIPLAY_NO_OPEN=1 disables auto-opening the browser
 }
 
@@ -45,6 +46,7 @@ func Load() Config {
 		DataDir:   dataDir,
 		OtakuBase: strings.TrimRight(getenv("OTAKU_BASE", "https://ww2.otakudesu.biz"), "/"),
 		HiBase:    strings.TrimRight(getenv("HIANIME_BASE", "https://hianime.at"), "/"),
+		IdlixBase: strings.TrimRight(getenv("IDLIX_BASE", "https://z2.idlixku.com"), "/"),
 		NoOpen:    os.Getenv("NANIPLAY_NO_OPEN") == "1",
 	}
 }

@@ -34,7 +34,7 @@ func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, ep
 		srcName = "HiAnime"
 	}
 	srcKey := strings.ToLower(srcName)
-	existing, err := s.db.SubtitleTracks(a.ID, episode)
+	existing, err := s.db.SubtitleTracks(store.AnimeKey(a.ID), episode)
 	if err != nil {
 		return
 	}
@@ -121,7 +121,7 @@ func (s *Server) apiSubtitleList(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
 		return
 	}
-	saved, err := s.db.SubtitleTracks(anilistID, episode)
+	saved, err := s.db.SubtitleTracks(store.AnimeKey(anilistID), episode)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return

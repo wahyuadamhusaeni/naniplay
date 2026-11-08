@@ -18,7 +18,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/web"
 )
 
-var version = "0.8.2"
+var version = "0.9.0"
 
 func main() {
 	log.SetPrefix("[naniplay] ")
@@ -31,7 +31,7 @@ func main() {
 	defer db.Close()
 
 	web.Version = version
-	srv, err := web.New(db, cfg.OtakuBase, cfg.HiBase)
+	srv, err := web.New(db, cfg.OtakuBase, cfg.HiBase, cfg.IdlixBase)
 	if err != nil {
 		log.Fatalf("web: %v", err)
 	}

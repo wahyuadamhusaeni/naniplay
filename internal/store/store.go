@@ -1,4 +1,9 @@
 // Package store persists NaniPlay user data (history, favorites) in SQLite.
+//
+// Since schema v2 (v0.9.0) every user-data row is keyed by a media key —
+// "anime:{anilistID}", "movie:{slug}", "series:{slug}" — so anime, movies
+// and series share one history/favorites/subtitle system. Databases created
+// by older versions are migrated in place on Open.
 package store
 
 import (
@@ -6,13 +11,35 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-// HistoryEntry is one row of watch history for an anime episode.
+// AnimeKey builds the media key for an AniList title.
+func AnimeKey(id int) string { return "anime:" + strconv.Itoa(id) }
+
+// ParseAnimeKey extracts the AniList ID from an anime media key.
+func ParseAnimeKey(key string) (int, bool) {
+	rest, ok := strings.CutPrefix(key, "anime:")
+	if !ok {
+		return 0, false
+	}
+	id, err := strconv.Atoi(rest)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
+}
+
+// HistoryEntry is one row of watch history for one episode (or a movie,
+// where Episode is 1). Key is the media key; AnilistID is derived from
+// the key on reads for anime titles (0 for other kinds) to keep older
+// templates and JSON consumers working.
 type HistoryEntry struct {
+	Key       string    `json:"key"`
 	AnilistID int       `json:"anilistId"`
 	Title     string    `json:"title"`
 	Poster    string    `json:"poster"`
@@ -34,8 +61,9 @@ func (h HistoryEntry) Progress() float64 {
 	return p
 }
 
-// Favorite is one bookmarked anime.
+// Favorite is one bookmarked title.
 type Favorite struct {
+	Key       string    `json:"key"`
 	AnilistID int       `json:"anilistId"`
 	Title     string    `json:"title"`
 	Poster    string    `json:"poster"`
@@ -70,41 +98,66 @@ func Open(dir string) (*Store, error) {
 // Close closes the database handle.
 func (s *Store) Close() error { return s.db.Close() }
 
+const schemaVersion = 2
+
+var schemaV2 = []string{
+	`CREATE TABLE IF NOT EXISTS history (
+		media_key  TEXT NOT NULL,
+		episode    INTEGER NOT NULL,
+		title      TEXT NOT NULL DEFAULT '',
+		poster     TEXT NOT NULL DEFAULT '',
+		position   REAL NOT NULL DEFAULT 0,
+		duration   REAL NOT NULL DEFAULT 0,
+		updated_at INTEGER NOT NULL DEFAULT 0,
+		PRIMARY KEY (media_key, episode)
+	)`,
+	`CREATE TABLE IF NOT EXISTS favorites (
+		media_key TEXT PRIMARY KEY,
+		title     TEXT NOT NULL DEFAULT '',
+		poster    TEXT NOT NULL DEFAULT '',
+		added_at  INTEGER NOT NULL DEFAULT 0
+	)`,
+	`CREATE TABLE IF NOT EXISTS settings (
+		key   TEXT PRIMARY KEY,
+		value TEXT NOT NULL DEFAULT ''
+	)`,
+	`CREATE TABLE IF NOT EXISTS subtitle_tracks (
+		id         TEXT PRIMARY KEY,
+		media_key  TEXT NOT NULL,
+		episode    INTEGER NOT NULL,
+		label      TEXT NOT NULL,
+		lang       TEXT NOT NULL DEFAULT '',
+		source     TEXT NOT NULL,
+		content    TEXT NOT NULL,
+		created_at INTEGER NOT NULL
+	)`,
+	`CREATE INDEX IF NOT EXISTS idx_subtitle_tracks ON subtitle_tracks(media_key, episode)`,
+}
+
 func (s *Store) migrate() error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS history (
-			anilist_id INTEGER NOT NULL,
-			episode    INTEGER NOT NULL,
-			title      TEXT NOT NULL DEFAULT '',
-			poster     TEXT NOT NULL DEFAULT '',
-			position   REAL NOT NULL DEFAULT 0,
-			duration   REAL NOT NULL DEFAULT 0,
-			updated_at INTEGER NOT NULL DEFAULT 0,
-			PRIMARY KEY (anilist_id, episode)
-		)`,
-		`CREATE TABLE IF NOT EXISTS favorites (
-			anilist_id INTEGER PRIMARY KEY,
-			title      TEXT NOT NULL DEFAULT '',
-			poster     TEXT NOT NULL DEFAULT '',
-			added_at   INTEGER NOT NULL DEFAULT 0
-		)`,
-		`CREATE TABLE IF NOT EXISTS settings (
-			key   TEXT PRIMARY KEY,
-			value TEXT NOT NULL DEFAULT ''
-		)`,
-		`CREATE TABLE IF NOT EXISTS subtitle_tracks (
-			id         TEXT PRIMARY KEY,
-			anilist_id INTEGER NOT NULL,
-			episode    INTEGER NOT NULL,
-			label      TEXT NOT NULL,
-			lang       TEXT NOT NULL DEFAULT '',
-			source     TEXT NOT NULL,
-			content    TEXT NOT NULL,
-			created_at INTEGER NOT NULL
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_subtitle_tracks ON subtitle_tracks(anilist_id, episode)`,
+	var version int
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		return err
 	}
-	for _, q := range stmts {
+	if version >= schemaVersion {
+		return s.createSchema()
+	}
+	legacy, err := s.hasLegacyHistory()
+	if err != nil {
+		return err
+	}
+	if !legacy {
+		if err := s.createSchema(); err != nil {
+			return err
+		}
+		_, err = s.db.Exec(`PRAGMA user_version = 2`)
+		return err
+	}
+	return s.migrateV1toV2()
+}
+
+func (s *Store) createSchema() error {
+	for _, q := range schemaV2 {
 		if _, err := s.db.Exec(q); err != nil {
 			return err
 		}
@@ -112,44 +165,157 @@ func (s *Store) migrate() error {
 	return nil
 }
 
+// hasLegacyHistory reports whether a v1 history table (keyed by
+// anilist_id) exists.
+func (s *Store) hasLegacyHistory() (bool, error) {
+	rows, err := s.db.Query(`PRAGMA table_info(history)`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
+			return false, err
+		}
+		if name == "anilist_id" {
+			found = true
+		}
+		if name == "media_key" {
+			return false, nil // already v2-shaped; version stamp handled by caller path
+		}
+	}
+	return found, rows.Err()
+}
+
+// migrateV1toV2 rebuilds the three user-data tables around media keys in
+// a single transaction; existing rows keep their data with
+// "anime:{anilist_id}" keys.
+func (s *Store) migrateV1toV2() error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmts := []string{
+		`CREATE TABLE history_v2 (
+			media_key  TEXT NOT NULL,
+			episode    INTEGER NOT NULL,
+			title      TEXT NOT NULL DEFAULT '',
+			poster     TEXT NOT NULL DEFAULT '',
+			position   REAL NOT NULL DEFAULT 0,
+			duration   REAL NOT NULL DEFAULT 0,
+			updated_at INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (media_key, episode)
+		)`,
+		`INSERT INTO history_v2 (media_key, episode, title, poster, position, duration, updated_at)
+		 SELECT 'anime:' || anilist_id, episode, title, poster, position, duration, updated_at FROM history`,
+		`DROP TABLE history`,
+		`ALTER TABLE history_v2 RENAME TO history`,
+		`CREATE TABLE favorites_v2 (
+			media_key TEXT PRIMARY KEY,
+			title     TEXT NOT NULL DEFAULT '',
+			poster    TEXT NOT NULL DEFAULT '',
+			added_at  INTEGER NOT NULL DEFAULT 0
+		)`,
+		`INSERT INTO favorites_v2 (media_key, title, poster, added_at)
+		 SELECT 'anime:' || anilist_id, title, poster, added_at FROM favorites`,
+		`DROP TABLE favorites`,
+		`ALTER TABLE favorites_v2 RENAME TO favorites`,
+		`CREATE TABLE subtitle_tracks_v2 (
+			id         TEXT PRIMARY KEY,
+			media_key  TEXT NOT NULL,
+			episode    INTEGER NOT NULL,
+			label      TEXT NOT NULL,
+			lang       TEXT NOT NULL DEFAULT '',
+			source     TEXT NOT NULL,
+			content    TEXT NOT NULL,
+			created_at INTEGER NOT NULL
+		)`,
+		`INSERT INTO subtitle_tracks_v2 (id, media_key, episode, label, lang, source, content, created_at)
+		 SELECT id, 'anime:' || anilist_id, episode, label, lang, source, content, created_at FROM subtitle_tracks`,
+		`DROP TABLE subtitle_tracks`,
+		`ALTER TABLE subtitle_tracks_v2 RENAME TO subtitle_tracks`,
+		`CREATE INDEX IF NOT EXISTS idx_subtitle_tracks ON subtitle_tracks(media_key, episode)`,
+		`CREATE TABLE IF NOT EXISTS settings (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		)`,
+		`PRAGMA user_version = 2`,
+	}
+	for _, q := range stmts {
+		if _, err := tx.Exec(q); err != nil {
+			return fmt.Errorf("migrasi skema v2: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// keyOf resolves the effective media key of an entry: an explicit Key
+// wins; an anime AnilistID is converted for backward compatibility.
+func keyOf(key string, anilistID int) string {
+	if key != "" {
+		return key
+	}
+	if anilistID > 0 {
+		return AnimeKey(anilistID)
+	}
+	return ""
+}
+
+func (h *HistoryEntry) fillDerived() {
+	if id, ok := ParseAnimeKey(h.Key); ok {
+		h.AnilistID = id
+	}
+}
+
+func (f *Favorite) fillDerived() {
+	if id, ok := ParseAnimeKey(f.Key); ok {
+		f.AnilistID = id
+	}
+}
+
 // SaveHistory upserts a history entry. Timestamps are unix milliseconds:
 // second precision would tie rapid consecutive saves.
 func (s *Store) SaveHistory(h HistoryEntry) error {
+	h.Key = keyOf(h.Key, h.AnilistID)
 	_, err := s.db.Exec(
-		`INSERT INTO history (anilist_id, episode, title, poster, position, duration, updated_at)
+		`INSERT INTO history (media_key, episode, title, poster, position, duration, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(anilist_id, episode) DO UPDATE SET
+		 ON CONFLICT(media_key, episode) DO UPDATE SET
 		   title=excluded.title, poster=excluded.poster,
 		   position=excluded.position, duration=excluded.duration,
 		   updated_at=excluded.updated_at`,
-		h.AnilistID, h.Episode, h.Title, h.Poster, h.Position, h.Duration, time.Now().UnixMilli())
+		h.Key, h.Episode, h.Title, h.Poster, h.Position, h.Duration, time.Now().UnixMilli())
 	return err
 }
 
-// HistoryFor returns the saved entry for one anime episode, if any.
-func (s *Store) HistoryFor(anilistID, episode int) (*HistoryEntry, error) {
+// HistoryFor returns the saved entry for one episode, if any.
+func (s *Store) HistoryFor(key string, episode int) (*HistoryEntry, error) {
 	row := s.db.QueryRow(
-		`SELECT anilist_id, title, poster, episode, position, duration, updated_at
-		 FROM history WHERE anilist_id = ? AND episode = ?`, anilistID, episode)
+		`SELECT media_key, title, poster, episode, position, duration, updated_at
+		 FROM history WHERE media_key = ? AND episode = ?`, key, episode)
 	var h HistoryEntry
 	var ts int64
-	if err := row.Scan(&h.AnilistID, &h.Title, &h.Poster, &h.Episode, &h.Position, &h.Duration, &ts); err != nil {
+	if err := row.Scan(&h.Key, &h.Title, &h.Poster, &h.Episode, &h.Position, &h.Duration, &ts); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
 	}
 	h.UpdatedAt = time.UnixMilli(ts)
+	h.fillDerived()
 	return &h, nil
 }
 
-// ContinueWatching returns the most recent episode per anime, newest first.
-// Deduplication happens in Go so tied timestamps can never surface the
-// same anime twice.
-// EpisodeProgress returns the watched percentage (0-100) per
-// episode of one anime, for episode-picker watched markers.
-func (s *Store) EpisodeProgress(anilistID int) (map[int]int, error) {
-	rows, err := s.db.Query(`SELECT episode, position, duration FROM history WHERE anilist_id = ? AND duration > 0`, anilistID)
+// EpisodeProgress returns the watched percentage (0-100) per episode of
+// one title, for episode-picker watched markers.
+func (s *Store) EpisodeProgress(key string) (map[int]int, error) {
+	rows, err := s.db.Query(`SELECT episode, position, duration FROM history WHERE media_key = ? AND duration > 0`, key)
 	if err != nil {
 		return nil, err
 	}
@@ -172,13 +338,16 @@ func (s *Store) EpisodeProgress(anilistID int) (map[int]int, error) {
 	return out, rows.Err()
 }
 
+// ContinueWatching returns the most recent episode per title, newest
+// first. Deduplication happens in Go so tied timestamps can never
+// surface the same title twice.
 func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
 	fetch := limit * 5
 	if fetch < 50 {
 		fetch = 50
 	}
 	rows, err := s.db.Query(
-		`SELECT anilist_id, title, poster, episode, position, duration, updated_at
+		`SELECT media_key, title, poster, episode, position, duration, updated_at
 		 FROM history ORDER BY updated_at DESC LIMIT ?`, fetch)
 	if err != nil {
 		return nil, err
@@ -188,13 +357,13 @@ func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	seen := map[int]bool{}
+	seen := map[string]bool{}
 	out := []HistoryEntry{}
 	for _, h := range all {
-		if seen[h.AnilistID] {
+		if seen[h.Key] {
 			continue
 		}
-		seen[h.AnilistID] = true
+		seen[h.Key] = true
 		out = append(out, h)
 		if len(out) >= limit {
 			break
@@ -206,7 +375,7 @@ func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
 // AllHistory returns every history entry, newest first.
 func (s *Store) AllHistory(limit int) ([]HistoryEntry, error) {
 	rows, err := s.db.Query(
-		`SELECT anilist_id, title, poster, episode, position, duration, updated_at
+		`SELECT media_key, title, poster, episode, position, duration, updated_at
 		 FROM history ORDER BY updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -220,18 +389,19 @@ func scanHistory(rows *sql.Rows) ([]HistoryEntry, error) {
 	for rows.Next() {
 		var h HistoryEntry
 		var ts int64
-		if err := rows.Scan(&h.AnilistID, &h.Title, &h.Poster, &h.Episode, &h.Position, &h.Duration, &ts); err != nil {
+		if err := rows.Scan(&h.Key, &h.Title, &h.Poster, &h.Episode, &h.Position, &h.Duration, &ts); err != nil {
 			return nil, err
 		}
 		h.UpdatedAt = time.UnixMilli(ts)
+		h.fillDerived()
 		out = append(out, h)
 	}
 	return out, rows.Err()
 }
 
-// DeleteHistory removes one anime (all episodes) from history.
-func (s *Store) DeleteHistory(anilistID int) error {
-	_, err := s.db.Exec(`DELETE FROM history WHERE anilist_id = ?`, anilistID)
+// DeleteHistory removes one title (all episodes) from history.
+func (s *Store) DeleteHistory(key string) error {
+	_, err := s.db.Exec(`DELETE FROM history WHERE media_key = ?`, key)
 	return err
 }
 
@@ -257,6 +427,7 @@ func (s *Store) SetSetting(key, value string) error {
 // converted to WebVTT when served, so timing offsets never mutate it.
 type SubtitleTrack struct {
 	ID        string    `json:"id"`
+	Key       string    `json:"key"`
 	AnilistID int       `json:"anilistId"`
 	Episode   int       `json:"episode"`
 	Label     string    `json:"label"`
@@ -266,21 +437,28 @@ type SubtitleTrack struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+func (t *SubtitleTrack) fillDerived() {
+	if id, ok := ParseAnimeKey(t.Key); ok {
+		t.AnilistID = id
+	}
+}
+
 // SaveSubtitleTrack stores a subtitle track.
 func (s *Store) SaveSubtitleTrack(t SubtitleTrack) error {
+	t.Key = keyOf(t.Key, t.AnilistID)
 	_, err := s.db.Exec(
-		`INSERT INTO subtitle_tracks (id, anilist_id, episode, label, lang, source, content, created_at)
+		`INSERT INTO subtitle_tracks (id, media_key, episode, label, lang, source, content, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.AnilistID, t.Episode, t.Label, t.Lang, t.Source, t.Content, time.Now().Unix())
+		t.ID, t.Key, t.Episode, t.Label, t.Lang, t.Source, t.Content, time.Now().Unix())
 	return err
 }
 
 // SubtitleTracks lists saved tracks for an episode (without content).
-func (s *Store) SubtitleTracks(anilistID, episode int) ([]SubtitleTrack, error) {
+func (s *Store) SubtitleTracks(key string, episode int) ([]SubtitleTrack, error) {
 	rows, err := s.db.Query(
-		`SELECT id, anilist_id, episode, label, lang, source, created_at
-		 FROM subtitle_tracks WHERE anilist_id = ? AND episode = ?
-		 ORDER BY created_at ASC`, anilistID, episode)
+		`SELECT id, media_key, episode, label, lang, source, created_at
+		 FROM subtitle_tracks WHERE media_key = ? AND episode = ?
+		 ORDER BY created_at ASC`, key, episode)
 	if err != nil {
 		return nil, err
 	}
@@ -289,10 +467,11 @@ func (s *Store) SubtitleTracks(anilistID, episode int) ([]SubtitleTrack, error) 
 	for rows.Next() {
 		var t SubtitleTrack
 		var ts int64
-		if err := rows.Scan(&t.ID, &t.AnilistID, &t.Episode, &t.Label, &t.Lang, &t.Source, &ts); err != nil {
+		if err := rows.Scan(&t.ID, &t.Key, &t.Episode, &t.Label, &t.Lang, &t.Source, &ts); err != nil {
 			return nil, err
 		}
 		t.CreatedAt = time.Unix(ts, 0)
+		t.fillDerived()
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -303,9 +482,9 @@ func (s *Store) SubtitleTrack(id string) (*SubtitleTrack, error) {
 	var t SubtitleTrack
 	var ts int64
 	err := s.db.QueryRow(
-		`SELECT id, anilist_id, episode, label, lang, source, content, created_at
+		`SELECT id, media_key, episode, label, lang, source, content, created_at
 		 FROM subtitle_tracks WHERE id = ?`, id).
-		Scan(&t.ID, &t.AnilistID, &t.Episode, &t.Label, &t.Lang, &t.Source, &t.Content, &ts)
+		Scan(&t.ID, &t.Key, &t.Episode, &t.Label, &t.Lang, &t.Source, &t.Content, &ts)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -313,6 +492,7 @@ func (s *Store) SubtitleTrack(id string) (*SubtitleTrack, error) {
 		return nil, err
 	}
 	t.CreatedAt = time.Unix(ts, 0)
+	t.fillDerived()
 	return &t, nil
 }
 
@@ -322,27 +502,28 @@ func (s *Store) DeleteSubtitleTrack(id string) error {
 	return err
 }
 
-// ToggleFavorite adds the anime if absent, removes it if present.
+// ToggleFavorite adds the title if absent, removes it if present.
 // It reports the state after the toggle (true = now a favorite).
 func (s *Store) ToggleFavorite(f Favorite) (bool, error) {
+	f.Key = keyOf(f.Key, f.AnilistID)
 	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM favorites WHERE anilist_id = ?`, f.AnilistID).Scan(&n)
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM favorites WHERE media_key = ?`, f.Key).Scan(&n)
 	if err != nil {
 		return false, err
 	}
 	if n > 0 {
-		_, err = s.db.Exec(`DELETE FROM favorites WHERE anilist_id = ?`, f.AnilistID)
+		_, err = s.db.Exec(`DELETE FROM favorites WHERE media_key = ?`, f.Key)
 		return false, err
 	}
-	_, err = s.db.Exec(`INSERT INTO favorites (anilist_id, title, poster, added_at) VALUES (?, ?, ?, ?)`,
-		f.AnilistID, f.Title, f.Poster, time.Now().Unix())
+	_, err = s.db.Exec(`INSERT INTO favorites (media_key, title, poster, added_at) VALUES (?, ?, ?, ?)`,
+		f.Key, f.Title, f.Poster, time.Now().Unix())
 	return err == nil, err
 }
 
-// IsFavorite reports whether the anime is bookmarked.
-func (s *Store) IsFavorite(anilistID int) bool {
+// IsFavorite reports whether the title is bookmarked.
+func (s *Store) IsFavorite(key string) bool {
 	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM favorites WHERE anilist_id = ?`, anilistID).Scan(&n); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM favorites WHERE media_key = ?`, key).Scan(&n); err != nil {
 		return false
 	}
 	return n > 0
@@ -350,7 +531,7 @@ func (s *Store) IsFavorite(anilistID int) bool {
 
 // Favorites returns all favorites, newest first.
 func (s *Store) Favorites() ([]Favorite, error) {
-	rows, err := s.db.Query(`SELECT anilist_id, title, poster, added_at FROM favorites ORDER BY added_at DESC`)
+	rows, err := s.db.Query(`SELECT media_key, title, poster, added_at FROM favorites ORDER BY added_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -359,10 +540,11 @@ func (s *Store) Favorites() ([]Favorite, error) {
 	for rows.Next() {
 		var f Favorite
 		var ts int64
-		if err := rows.Scan(&f.AnilistID, &f.Title, &f.Poster, &ts); err != nil {
+		if err := rows.Scan(&f.Key, &f.Title, &f.Poster, &ts); err != nil {
 			return nil, err
 		}
 		f.AddedAt = time.Unix(ts, 0)
+		f.fillDerived()
 		out = append(out, f)
 	}
 	return out, rows.Err()
