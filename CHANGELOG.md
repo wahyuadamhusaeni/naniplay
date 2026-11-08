@@ -4,6 +4,13 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.8] — 2026-11-08
+
+### Diperbaiki
+- v1.9.7 gagal start (panic konflik pola mux: pola tanpa metode
+  bertabrakan dengan "GET /"). Rute embed-raw kini didaftarkan
+  per-metode (GET/POST/PUT/PATCH/DELETE/OPTIONS/HEAD).
+
 ## [1.9.7] — 2026-11-08
 
 ### Diperbaiki
