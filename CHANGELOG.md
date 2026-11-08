@@ -4,6 +4,17 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.4] — 2026-11-08
+
+### Diperbaiki
+- "Slug is not found" pada mode embed Abyss: proxy raw sebelumnya
+  membuang metode/badan/header/cookie permintaan aplikasi player —
+  kini diteruskan setia (hanya Referer/Origin ditulis ulang ke URL
+  embed penuh, bukan hanya origin; Set-Cookie upstream diteruskan
+  tanpa Domain). Data konfigurasi dokumen sendiri sudah utuh
+  (slug/md5/media identik; hanya ID ruang danmu yang berbeda per
+  sesi).
+
 ## [1.9.3] — 2026-11-08
 
 ### Diubah

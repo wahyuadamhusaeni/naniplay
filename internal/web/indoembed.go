@@ -102,7 +102,7 @@ func (s *Server) indoEmbedDoc(w http.ResponseWriter, r *http.Request) {
 		}
 		return prox(m)
 	})
-	patch := embedNetPatch(origin)
+	patch := embedNetPatch(origin, raw)
 	if strings.Contains(html, "</head>") {
 		html = strings.Replace(html, "</head>", patch+"</head>", 1)
 	} else {
@@ -116,9 +116,10 @@ func (s *Server) indoEmbedDoc(w http.ResponseWriter, r *http.Request) {
 // embedNetPatch builds the fetch/XHR interception script. Relative
 // URLs resolve against the embed origin; ad/tracker hosts are
 // denied (their requests fall through unproxied and die quietly).
-func embedNetPatch(origin string) string {
+func embedNetPatch(origin, docURL string) string {
 	eb, _ := json.Marshal(origin)
-	return fmt.Sprintf(`<script>(function(){var P="/api/indo-embed-raw";var EB=%s;var DENY=/googletagmanager|google-analytics|facebook\.net|popads|propellerads|adsterra|exoclick|popcash/i;function abs(u){try{return new URL(u,EB).href;}catch(e){return u;}}function prox(f){return P+"?src="+encodeURIComponent(f)+"&ref="+encodeURIComponent(EB);}var _f=window.fetch;function myfetch(u,o){var s;try{s=typeof u==="string"?u:(u&&u.url);}catch(e){return _f(u,o);}try{if(typeof s==="string"){if(!/^https?:/i.test(s))s=abs(s);if(!DENY.test(s))return _f(prox(s),o);}}catch(e){}return _f(u,o);}window.fetch=myfetch;try{window.fetch.toString=function(){return "function fetch() { [native code] }";};}catch(e){}var _o=XMLHttpRequest.prototype.open;function myopen(m,u){try{if(!/^https?:/i.test(u))u=abs(u);if(!DENY.test(u))u=prox(u);}catch(e){}return _o.call(this,m,u);}XMLHttpRequest.prototype.open=myopen;try{XMLHttpRequest.prototype.open.toString=function(){return "function open() { [native code] }";};}catch(e){}})();</script>`, eb)
+	rf, _ := json.Marshal(docURL)
+	return fmt.Sprintf(`<script>(function(){var P="/api/indo-embed-raw";var EB=%s;var RF=%s;var DENY=/googletagmanager|google-analytics|facebook\.net|popads|propellerads|adsterra|exoclick|popcash/i;function abs(u){try{return new URL(u,EB).href;}catch(e){return u;}}function prox(f){return P+"?src="+encodeURIComponent(f)+"&ref="+encodeURIComponent(RF);}var _f=window.fetch;function myfetch(u,o){var s;try{s=typeof u==="string"?u:(u&&u.url);}catch(e){return _f(u,o);}try{if(typeof s==="string"){if(!/^https?:/i.test(s))s=abs(s);if(!DENY.test(s))return _f(prox(s),o);}}catch(e){}return _f(u,o);}window.fetch=myfetch;try{window.fetch.toString=function(){return "function fetch() { [native code] }";};}catch(e){}var _o=XMLHttpRequest.prototype.open;function myopen(m,u){try{if(!/^https?:/i.test(u))u=abs(u);if(!DENY.test(u))u=prox(u);}catch(e){}return _o.call(this,m,u);}XMLHttpRequest.prototype.open=myopen;try{XMLHttpRequest.prototype.open.toString=function(){return "function open() { [native code] }";};}catch(e){}})();</script>`, eb, rf)
 }
 
 // indoEmbedRaw proxies one upstream resource for the embed player:
@@ -137,21 +138,47 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	if pu, err := url.Parse(ref); err != nil || (pu.Scheme != "https" && pu.Scheme != "http") {
 		referer = s.kita.Base() + "/"
 	}
-	// Ambil upstream persis seperti route player elka21 yang terbukti:
-	// klien polos (tanpa sidik jari TLS khusus), UA Chrome/120, dan
-	// hanya Referer. Tumpukan header browser penuh + Origin yang
-	// dipakai mode native justru ditolak gerbang CDN untuk rantai ini.
+	// Proxy yang setia (v1.9.4): teruskan METODE, BADAN, dan header
+	// permintaan halaman embed apa adanya — aplikasi player masa
+	// kini bertukar data lewat POST + header khusus + cookie, dan
+	// membuangnya membuat API upstream menjawab seolah slug tidak
+	// ada. Hanya Referer/Origin yang ditulis ulang ke halaman embed
+	// (memang itu identitas yang diharapkan upstream), dan cookie
+	// upstream diteruskan balik tanpa Domain agar sesi player
+	// berlanjut lewat proxy.
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+	var reqBody io.Reader
+	if r.ContentLength != 0 && r.Method != http.MethodGet && r.Method != http.MethodHead {
+		b, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
+		if err != nil {
+			http.Error(w, "Badan permintaan tidak terbaca", http.StatusBadRequest)
+			return
+		}
+		if len(b) > 0 {
+			reqBody = strings.NewReader(string(b))
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, r.Method, raw, reqBody)
 	if err != nil {
 		http.Error(w, "URL tidak valid", http.StatusBadRequest)
 		return
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	skip := map[string]bool{
+		"Host": true, "Connection": true, "Content-Length": true,
+		"Accept-Encoding": true, "Referer": true, "Origin": true,
+	}
+	for k, vs := range r.Header {
+		if skip[http.CanonicalHeaderKey(k)] {
+			continue
+		}
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
+	}
 	req.Header.Set("Referer", referer)
-	if rng := r.Header.Get("Range"); rng != "" {
-		req.Header.Set("Range", rng)
+	if pu, err := url.Parse(referer); err == nil && pu.Host != "" {
+		req.Header.Set("Origin", pu.Scheme+"://"+pu.Host)
 	}
 	resp, err := proxy.GuardedClientSkipVerify(60 * time.Second).Do(req)
 	if err != nil {
@@ -160,6 +187,9 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	}
 	status, ctype, body := resp.StatusCode, resp.Header.Get("Content-Type"), resp.Body
 	defer body.Close()
+	for _, ck := range resp.Header["Set-Cookie"] {
+		w.Header().Add("Set-Cookie", rewriteEmbedCookie(ck))
+	}
 	br := bufio.NewReader(body)
 	isPlaylist := strings.Contains(ctype, "mpegurl")
 	if !isPlaylist {
@@ -220,4 +250,22 @@ func rewriteEmbedPlaylist(body, base, referer string) string {
 		lines[i] = wrap(trim)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// rewriteEmbedCookie drops the Domain attribute from an upstream
+// Set-Cookie (the browser would reject another domain's cookie) and
+// pins Path=/ so the proxied player keeps its session.
+func rewriteEmbedCookie(ck string) string {
+	parts := strings.Split(ck, ";")
+	out := parts[:1]
+	for _, p := range parts[1:] {
+		p = strings.TrimSpace(p)
+		if strings.HasPrefix(strings.ToLower(p), "domain=") || strings.HasPrefix(strings.ToLower(p), "path=") {
+			continue
+		}
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, "; ") + "; Path=/"
 }
