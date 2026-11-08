@@ -79,15 +79,17 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
   `POST /api/watch/session/claim` → redeem ke host video (majorplay) →
   master HLS + trek subtitle. NaniPlay mengimplementasikan klien API ini
   secara clean-room di Go.
-- Seluruh situs berada di balik tantangan Cloudflare ("Just a moment",
-  HTTP 403 untuk klien HTTP biasa — terverifikasi langsung & via proxy).
-  Karena itu container membawa **pembantu sesi** kecil (Node + Chromium
-  headless, ditulis sendiri): satu-satunya tugasnya menjaga satu halaman
-  yang lolos tantangan dan mengeksekusi fetch atas perintah sisi Go —
-  pola yang sama yang dipakai aplikasi IDLIX komunitas, diimplementasikan
-  ulang. Chromium headless terverifikasi JALAN di CPU VPS target.
-- Konsekuensi jujur: image membesar dari ~15 MB ke ratusan MB dan RAM
-  siaga naik (browser), demi satu container untuk semua konten.
+- Situs berada di balik penyaringan bot Cloudflare ("Just a moment",
+  HTTP 403 untuk klien HTTP biasa — curl langsung & via proxy sama-sama
+  ditolak). Namun gerbangnya berbasis **skor sidik jari TLS/HTTP2**, bukan
+  kewajiban mengeksekusi JavaScript: klien Go murni dengan sidik jari
+  Chrome (uTLS, `bogdanfinn/tls-client`) LOLOS — terverifikasi dari server
+  produksi 2026-11-08: `/api/movies` 200 JSON, `/api/genres` 200 JSON,
+  beranda 200 HTML asli. **NaniPlay tetap 100% Go, satu binary, tanpa
+  browser/Node.** Alur putar (gerbang token → klaim → redeem) memakai
+  klien yang sama dan diverifikasi end-to-end pada v0.11.0.
+- Konsekuensi: container tetap ramping (kelas ~20 MB); dependensi baru
+  hanya pustaka sidik jari TLS murni Go.
 
 ### v0.9.0 — Fondasi gabung
 
@@ -99,8 +101,8 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v0.10.0 — Katalog sinema
 
-- [ ] Paket `internal/idlix`: klien API katalog + jembatan pembantu sesi
-      (sesi Cloudflare, fetch dalam halaman, cache respons, antrean tunggal)
+- [ ] Paket `internal/idlix`: klien API katalog full-Go (sidik jari TLS
+      Chrome via uTLS, cache respons, antrean tunggal, domain dapat diganti)
 - [ ] Halaman Film & Series: rail beranda per seksi, jelajah + genre,
       detail series dengan musim/episode, pencarian per seksi
 
