@@ -82,13 +82,3 @@
 </section>
 {{end}}
 {{end}}
-
-{{define "card"}}
-<a class="card" href="/anime/{{.ID}}">
-  <div class="card-img"><img loading="lazy" src="{{.Cover}}" alt="{{.Display}}">
-    {{if .NextEpisode}}<span class="card-badge">Ep {{.NextEpisode}} segera</span>{{end}}
-  </div>
-  <p class="card-title">{{.Display}}</p>
-  <p class="card-meta">{{if .Score}}★ {{.Score}}% · {{end}}{{.SeasonYear}}</p>
-</a>
-{{end}}

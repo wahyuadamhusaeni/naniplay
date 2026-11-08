@@ -6,10 +6,26 @@
     <button class="btn btn-play" type="submit">Cari</button>
   </form>
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
-  {{if .Query}}<h2 class="page-h">Hasil untuk “{{.Query}}”</h2>{{end}}
-  <div class="grid">
-    {{range .Results}}{{template "card" .}}{{end}}
-  </div>
-  {{if and .Query (not .Results) (not .Err)}}<p class="dim">Tidak ada hasil. Coba judul lain (judul Inggris/Romaji bekerja paling baik).</p>{{end}}
+  {{if .Query}}
+    <h2 class="page-h">{{if .Results}}{{len .Results}} hasil untuk{{else}}Hasil untuk{{end}} “{{.Query}}”</h2>
+    <div class="grid">
+      {{range .Results}}{{template "card" .}}{{end}}
+    </div>
+    {{if not .Results}}{{if not .Err}}<p class="dim">Tidak ada hasil. Coba judul lain — judul Inggris/Romaji bekerja paling baik.</p>{{end}}{{end}}
+  {{else}}
+    <h2 class="page-h">Mau nonton apa?</h2>
+    <p class="dim">Ketik judul di atas, atau jelajahi berdasarkan genre:</p>
+    <div class="genre-grid">
+      <a class="genre-tile" href="/genre/Action">Action</a>
+      <a class="genre-tile" href="/genre/Adventure">Adventure</a>
+      <a class="genre-tile" href="/genre/Comedy">Comedy</a>
+      <a class="genre-tile" href="/genre/Drama">Drama</a>
+      <a class="genre-tile" href="/genre/Fantasy">Fantasy</a>
+      <a class="genre-tile" href="/genre/Romance">Romance</a>
+      <a class="genre-tile" href="/genre/Sci-Fi">Sci-Fi</a>
+      <a class="genre-tile" href="/genre/Slice of Life">Slice of Life</a>
+      <a class="genre-tile" href="/genre">Semua Genre →</a>
+    </div>
+  {{end}}
 </section>
 {{end}}

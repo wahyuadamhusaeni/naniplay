@@ -23,6 +23,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/hianime"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/otakudesu"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
+	"github.com/wahyuadamhusaeni/naniplay/internal/subtitle"
 )
 
 //go:embed templates static
@@ -43,8 +44,8 @@ type Server struct {
 	tpl       map[string]*template.Template
 
 	mu       sync.Mutex
-	matches  map[int]matchEntry // anilist id -> source match
-	episodes map[int][]source.Episode
+	matches  map[string]matchEntry // "id|src" -> source match
+	episodes map[string][]source.Episode
 
 	relMu     sync.Mutex
 	latestTag string
@@ -83,13 +84,15 @@ func New(db *store.Store, otakuBase, hiBase string) (*Server, error) {
 		},
 		db:       db,
 		tpl:      map[string]*template.Template{},
-		matches:  map[int]matchEntry{},
-		episodes: map[int][]source.Episode{},
+		matches:  map[string]matchEntry{},
+		episodes: map[string][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
+			"add": func(a, b int) int { return a + b },
+			"sub": func(a, b int) int { return a - b },
 		}).ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
 			return nil, fmt.Errorf("template %s: %w", p, err)
@@ -108,6 +111,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /anime/{id}", s.detail)
 	mux.HandleFunc("GET /watch/{id}/{ep}", s.watch)
 	mux.HandleFunc("GET /search", s.searchPage)
+	mux.HandleFunc("GET /genre", s.genreIndex)
+	mux.HandleFunc("GET /genre/{name}", s.genrePage)
 	mux.HandleFunc("GET /jadwal", s.schedulePage)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
@@ -123,6 +128,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/upload", s.apiSubtitleUpload)
 	mux.HandleFunc("GET /api/subtitles/track/{trackID}", s.apiSubtitleTrack)
 	mux.HandleFunc("POST /api/subtitles/track/{trackID}/translate", s.apiSubtitleTranslate)
+	mux.HandleFunc("POST /api/subtitles/track/{trackID}/translate-llm", s.apiSubtitleTranslateAI)
 	mux.HandleFunc("DELETE /api/subtitles/track/{trackID}", s.apiSubtitleDelete)
 	mux.HandleFunc("GET /api/health", s.apiHealth)
 	mux.HandleFunc("GET /api/version", s.apiVersion)
@@ -214,13 +220,18 @@ func seasonLabel(s string) string {
 }
 
 type detailData struct {
-	Anime      *anilist.Anime
-	IsFavorite bool
-	Series     *source.Series
-	Episodes   []source.Episode
-	SourceErr  string
-	Continue   *store.HistoryEntry
-	Relations  []anilist.Relation
+	Anime        *anilist.Anime
+	IsFavorite   bool
+	Series       *source.Series
+	Episodes     []source.Episode
+	SourceErr    string
+	Continue     *store.HistoryEntry
+	Relations    []anilist.Relation
+	SrcSel       string      // forced provider id from ?src= ("" = automatic)
+	ProviderName string      // display name of the resolved provider
+	PagePath     string      // canonical path of this page (for source chips)
+	CurrentEp    int         // episode to highlight in the picker (continue point)
+	Watched      map[int]int // episode -> watched percent
 }
 
 func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
@@ -234,21 +245,34 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "notfound", nil)
 		return
 	}
-	data := detailData{Anime: a, IsFavorite: s.db.IsFavorite(id)}
+	forced := validSrc(r.URL.Query().Get("src"))
+	data := detailData{
+		Anime:      a,
+		IsFavorite: s.db.IsFavorite(id),
+		SrcSel:     forced,
+		PagePath:   fmt.Sprintf("/anime/%d", id),
+	}
 	if rels, err := s.anilist.Relations(r.Context(), id); err == nil {
 		data.Relations = rels
 	}
-	series, eps, _ := s.matchEpisodes(r.Context(), a)
+	if watched, err := s.db.EpisodeProgress(id); err == nil {
+		data.Watched = watched
+	}
+	series, eps, provider := s.matchEpisodes(r.Context(), a, forced)
 	if series != nil {
 		data.Series = series
 		data.Episodes = eps
+		data.ProviderName = providerDisplay(provider)
+	} else if forced != "" {
+		data.SourceErr = fmt.Sprintf("Judul ini tidak tersedia di %s. Coba sumber lain di pemilih sumber.", providerDisplay(forced))
 	} else {
-		data.SourceErr = "Belum ditemukan di sumber streaming (Otakudesu/HiAnime)."
+		data.SourceErr = "Belum ditemukan di sumber streaming mana pun (Otakudesu/HiAnime/AniChan)."
 	}
 	if cw, err := s.db.ContinueWatching(50); err == nil {
 		for i := range cw {
 			if cw[i].AnilistID == id {
 				data.Continue = &cw[i]
+				data.CurrentEp = cw[i].Episode
 				break
 			}
 		}
@@ -257,51 +281,91 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 }
 
 // matchEpisodes resolves (and caches) the streaming series +
-// episodes for an AniList anime. Otakudesu (Sub Indo hardsub) is
-// tried first; HiAnime is the fallback when Otakudesu has no match —
-// its softsubs can be machine-translated in the player. The third
-// return value is the winning provider's id.
-func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.Series, []source.Episode, string) {
+// episodes for an AniList anime. With forced == "" the chain is
+// Otakudesu (Sub Indo hardsub) -> HiAnime -> AniChan; a forced
+// provider id ("otakudesu"/"hianime"/"anichan") uses only that
+// source, for the manual source picker. The third return value is
+// the winning provider's id.
+func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime, forced string) (*source.Series, []source.Episode, string) {
+	key := fmt.Sprintf("%d|%s", a.ID, forced)
 	s.mu.Lock()
-	if m, ok := s.matches[a.ID]; ok && time.Since(m.at) < 30*time.Minute {
-		eps := s.episodes[a.ID]
+	if m, ok := s.matches[key]; ok && time.Since(m.at) < 30*time.Minute {
+		eps := s.episodes[key]
 		s.mu.Unlock()
 		return m.series, eps, m.provider
 	}
 	s.mu.Unlock()
 
 	titles := []string{a.Title.Romaji, a.Title.English}
-	series, eps, err := s.otaku.Match(ctx, titles, a.Episodes)
-	provider := s.otaku.Name()
-	if err != nil || series == nil {
-		series, eps, err = s.hi.Match(ctx, titles, a.Episodes)
-		provider = s.hi.Name()
+	var series *source.Series
+	var eps []source.Episode
+	var err error
+	provider := ""
+	try := func(name string, fn func() (*source.Series, []source.Episode, error)) bool {
+		if forced != "" && forced != name {
+			return false
+		}
+		series, eps, err = fn()
+		if err == nil && series != nil {
+			provider = name
+			return true
+		}
+		return false
 	}
-	if err != nil || series == nil {
-		// AniChan is keyed by AniList ID: no title guessing involved.
-		series, eps, err = s.ani.Lookup(ctx, a.ID, a.Title.Romaji, a.Episodes)
-		provider = s.ani.Name()
-	}
-	if err != nil || series == nil {
+	_ = try(s.otaku.Name(), func() (*source.Series, []source.Episode, error) { return s.otaku.Match(ctx, titles, a.Episodes) }) ||
+		try(s.hi.Name(), func() (*source.Series, []source.Episode, error) { return s.hi.Match(ctx, titles, a.Episodes) }) ||
+		try(s.ani.Name(), func() (*source.Series, []source.Episode, error) {
+			return s.ani.Lookup(ctx, a.ID, a.Title.Romaji, a.Episodes)
+		})
+	if series == nil {
 		return nil, nil, ""
 	}
 	s.mu.Lock()
-	s.matches[a.ID] = matchEntry{series: series, provider: provider, at: time.Now()}
-	s.episodes[a.ID] = eps
+	s.matches[key] = matchEntry{series: series, provider: provider, at: time.Now()}
+	s.episodes[key] = eps
 	s.mu.Unlock()
 	return series, eps, provider
 }
 
+// validSrc normalizes the ?src= picker value.
+func validSrc(v string) string {
+	switch v {
+	case "otakudesu", "hianime", "anichan":
+		return v
+	default:
+		return ""
+	}
+}
+
+// providerDisplay maps a provider id to its display name.
+func providerDisplay(id string) string {
+	switch id {
+	case "otakudesu":
+		return "Otakudesu"
+	case "hianime":
+		return "HiAnime"
+	case "anichan":
+		return "AniChan"
+	default:
+		return id
+	}
+}
+
 type watchData struct {
-	Anime     *anilist.Anime
-	Episode   int
-	Stream    *source.Stream
-	ProxyURL  string
-	Episodes  []source.Episode
-	PrevEp    int
-	NextEp    int
-	SavedPos  float64
-	SourceErr string
+	Anime        *anilist.Anime
+	Episode      int
+	CurrentEp    int
+	Stream       *source.Stream
+	ProxyURL     string
+	Episodes     []source.Episode
+	PrevEp       int
+	NextEp       int
+	SavedPos     float64
+	SourceErr    string
+	SrcSel       string
+	ProviderName string
+	PagePath     string
+	Watched      map[int]int
 }
 
 func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
@@ -316,13 +380,28 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "notfound", nil)
 		return
 	}
-	data := watchData{Anime: a, Episode: ep}
-	series, eps, providerName := s.matchEpisodes(r.Context(), a)
+	forced := validSrc(r.URL.Query().Get("src"))
+	data := watchData{
+		Anime:     a,
+		Episode:   ep,
+		CurrentEp: ep,
+		SrcSel:    forced,
+		PagePath:  fmt.Sprintf("/watch/%d/%d", id, ep),
+	}
+	if watched, err := s.db.EpisodeProgress(id); err == nil {
+		data.Watched = watched
+	}
+	series, eps, providerName := s.matchEpisodes(r.Context(), a, forced)
 	if series == nil {
-		data.SourceErr = "Sumber streaming untuk judul ini belum ditemukan."
+		if forced != "" {
+			data.SourceErr = fmt.Sprintf("Judul ini tidak tersedia di %s. Coba sumber lain di pemilih sumber.", providerDisplay(forced))
+		} else {
+			data.SourceErr = "Sumber streaming untuk judul ini belum ditemukan."
+		}
 		s.render(w, "watch", data)
 		return
 	}
+	data.ProviderName = providerDisplay(providerName)
 	data.Episodes = eps
 	var target *source.Episode
 	for i := range eps {
@@ -371,6 +450,57 @@ type searchData struct {
 	Query   string
 	Results []anilist.Anime
 	Err     string
+}
+
+type genreIndexData struct {
+	Genres []string
+}
+
+func (s *Server) genreIndex(w http.ResponseWriter, r *http.Request) {
+	genres := []string{}
+	for _, g := range anilist.Genres {
+		if g == "Hentai" {
+			continue // katalog NaniPlay selalu non-dewasa (isAdult=false)
+		}
+		genres = append(genres, g)
+	}
+	s.render(w, "genre", genreIndexData{Genres: genres})
+}
+
+type genreListData struct {
+	Genre   string
+	Results []anilist.Anime
+	Page    int
+	HasNext bool
+	Err     string
+}
+
+func (s *Server) genrePage(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	valid := false
+	for _, g := range anilist.Genres {
+		if g == name {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		http.NotFound(w, r)
+		return
+	}
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	data := genreListData{Genre: name, Page: page}
+	res, hasNext, err := s.anilist.ByGenre(r.Context(), name, page)
+	if err != nil {
+		data.Err = err.Error()
+	} else {
+		data.Results = res
+		data.HasNext = hasNext
+	}
+	s.render(w, "genrelist", data)
 }
 
 func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
@@ -519,6 +649,9 @@ func (s *Server) schedulePage(w http.ResponseWriter, r *http.Request) {
 
 type settingsData struct {
 	OtakuBase string
+	LLMBase   string
+	LLMModel  string
+	LLMKeySet bool
 	Version   string
 	Latest    string
 	Update    bool
@@ -526,10 +659,22 @@ type settingsData struct {
 	Err       string
 }
 
+// llmConfig reads the saved AI fansub (BYOK) endpoint settings.
+func (s *Server) llmConfig() subtitle.LLMConfig {
+	return subtitle.LLMConfig{
+		BaseURL: s.db.GetSetting("llm_base"),
+		APIKey:  s.db.GetSetting("llm_key"),
+		Model:   s.db.GetSetting("llm_model"),
+	}
+}
+
 func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	latest := s.latestRelease(r.Context())
 	data := settingsData{
 		OtakuBase: s.otaku.Base(),
+		LLMBase:   s.db.GetSetting("llm_base"),
+		LLMModel:  s.db.GetSetting("llm_model"),
+		LLMKeySet: s.db.GetSetting("llm_key") != "",
 		Version:   Version,
 		Latest:    latest,
 		Update:    latest != "" && latest != "v"+Version,
@@ -543,24 +688,46 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "form tidak valid", http.StatusBadRequest)
 		return
 	}
-	base := strings.TrimSpace(r.FormValue("otakudesu_base"))
-	if base != "" && !strings.HasPrefix(base, "https://") && !strings.HasPrefix(base, "http://") {
-		data := settingsData{OtakuBase: s.otaku.Base(), Version: Version, Err: "Alamat sumber harus diawali http:// atau https://"}
-		s.render(w, "settings", data)
-		return
+	// The settings page has one form per section; only persist the
+	// section whose fields were actually submitted.
+	if _, present := r.Form["otakudesu_base"]; present {
+		base := strings.TrimSpace(r.FormValue("otakudesu_base"))
+		if base != "" && !strings.HasPrefix(base, "https://") && !strings.HasPrefix(base, "http://") {
+			data := settingsData{OtakuBase: s.otaku.Base(), Version: Version, Err: "Alamat sumber harus diawali http:// atau https://"}
+			s.render(w, "settings", data)
+			return
+		}
+		if err := s.db.SetSetting("otakudesu_base", base); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if base != "" {
+			s.otaku.SetBase(base)
+		}
+		// A new source domain invalidates cached matches.
+		s.mu.Lock()
+		s.matches = map[string]matchEntry{}
+		s.episodes = map[string][]source.Episode{}
+		s.mu.Unlock()
 	}
-	if err := s.db.SetSetting("otakudesu_base", base); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if _, present := r.Form["llm_base"]; present {
+		// AI fansub (BYOK) endpoint settings. The API key is only
+		// overwritten when a new one is typed; an empty field keeps
+		// the saved key, and the clear checkbox removes it.
+		llmBase := strings.TrimSpace(r.FormValue("llm_base"))
+		if llmBase != "" && !strings.HasPrefix(llmBase, "https://") && !strings.HasPrefix(llmBase, "http://") {
+			data := settingsData{OtakuBase: s.otaku.Base(), LLMBase: llmBase, LLMModel: r.FormValue("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat endpoint AI harus diawali http:// atau https://"}
+			s.render(w, "settings", data)
+			return
+		}
+		_ = s.db.SetSetting("llm_base", llmBase)
+		_ = s.db.SetSetting("llm_model", strings.TrimSpace(r.FormValue("llm_model")))
+		if r.FormValue("llm_key_clear") == "1" {
+			_ = s.db.SetSetting("llm_key", "")
+		} else if key := strings.TrimSpace(r.FormValue("llm_key")); key != "" {
+			_ = s.db.SetSetting("llm_key", key)
+		}
 	}
-	if base != "" {
-		s.otaku.SetBase(base)
-	}
-	// A new source domain invalidates cached matches.
-	s.mu.Lock()
-	s.matches = map[int]matchEntry{}
-	s.episodes = map[int][]source.Episode{}
-	s.mu.Unlock()
 	http.Redirect(w, r, "/pengaturan?saved=1", http.StatusSeeOther)
 }
 

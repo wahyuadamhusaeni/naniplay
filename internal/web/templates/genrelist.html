@@ -1,0 +1,17 @@
+{{define "title"}}Genre {{.Genre}} — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <a class="back-link" href="/genre">← Semua Genre</a>
+  <h2 class="page-h">{{.Genre}}</h2>
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  <div class="grid">
+    {{range .Results}}{{template "card" .}}{{end}}
+  </div>
+  {{if and (not .Results) (not .Err)}}<p class="dim">Tidak ada anime di halaman ini.</p>{{end}}
+  <div class="pager">
+    {{if gt .Page 1}}<a class="btn btn-ghost" href="/genre/{{.Genre}}?page={{sub .Page 1}}">← Sebelumnya</a>{{end}}
+    <span class="dim">Halaman {{.Page}}</span>
+    {{if .HasNext}}<a class="btn btn-ghost" href="/genre/{{.Genre}}?page={{add .Page 1}}">Berikutnya →</a>{{end}}
+  </div>
+</section>
+{{end}}

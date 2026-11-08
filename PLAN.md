@@ -53,10 +53,11 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 ## Fase 4 — AI Fansub & Pelengkap
 
 - [x] Terjemahan mesin Google GTX tanpa kunci (Inggris → Indonesia, tersimpan luring) *(v0.4.0)*
-- [ ] AI fansub BYOK via endpoint OpenAI-compatible apa pun (Gemini/Groq/OpenAI/Ollama/9router sendiri) — tingkat di atas GTX: hybrid LLM mengisi baris yang gagal diterjemahkan mesin
+- [x] AI fansub BYOK via endpoint OpenAI-compatible apa pun (Gemini/Groq/OpenAI/Ollama/9router sendiri) — tingkat di atas GTX; baris yang dijatuhkan model diisi GTX *(v0.8.0)*
 - [x] AniSkip: deteksi & lewati opening/ending *(selesai lebih awal, di v0.2.0)*
 - [x] Jadwal rilis mingguan (AniList airing schedule) *(selesai lebih awal, di v0.2.0)*
-- [ ] Jelajah genre & filter katalog
+- [x] Jelajah genre (daftar per genre AniList + penomoran halaman) *(v0.8.0)*
+- [x] Pemain kustom (menu kualitas, PiP, pintasan keyboard), pemilihan sumber manual, pemilih episode cerdas, drawer mobile *(v0.8.0, masukan pengguna)*
 - [ ] Episode mendatang untuk anime di Daftar Saya/Riwayat
 - [ ] Mode TV (navigasi D-pad) di web
 

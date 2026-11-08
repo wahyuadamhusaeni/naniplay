@@ -14,10 +14,10 @@
         {{if .Status}}<span>{{.Status}}</span>{{end}}
         {{if .Studio}}<span>{{.Studio}}</span>{{end}}
       </p>
-      {{if .Genres}}<p class="genres">{{range .Genres}}<span class="chip">{{.}}</span>{{end}}</p>{{end}}
+      {{if .Genres}}<p class="genres">{{range .Genres}}<a class="chip chip-link" href="/genre/{{.}}">{{.}}</a>{{end}}</p>{{end}}
       <p class="hero-desc">{{.Description}}</p>
       <div class="hero-actions">
-        {{if $.Episodes}}<a class="btn btn-play" href="/watch/{{.ID}}/{{(index $.Episodes 0).Number}}">▶&nbsp; Putar Episode {{(index $.Episodes 0).Number}}</a>{{end}}
+        {{if $.Episodes}}<a class="btn btn-play" href="/watch/{{.ID}}/{{(index $.Episodes 0).Number}}{{if $.SrcSel}}?src={{$.SrcSel}}{{end}}">▶&nbsp; Putar Episode {{(index $.Episodes 0).Number}}</a>{{end}}
         <form method="post" action="/favorites/toggle" class="inline-form">
           <input type="hidden" name="anilist_id" value="{{.ID}}">
           <input type="hidden" name="title" value="{{.Display}}">
@@ -26,7 +26,7 @@
           <button class="btn btn-ghost" type="submit">{{if $.IsFavorite}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
         </form>
       </div>
-      {{with $.Continue}}<p class="continue-note">Terakhir: Episode {{.Episode}} — <a href="/watch/{{.AnilistID}}/{{.Episode}}">lanjutkan menonton</a></p>{{end}}
+      {{with $.Continue}}<p class="continue-note">Terakhir: Episode {{.Episode}} — <a href="/watch/{{.AnilistID}}/{{.Episode}}{{if $.SrcSel}}?src={{$.SrcSel}}{{end}}">lanjutkan menonton</a></p>{{end}}
     </div>
   </div>
 </section>
@@ -51,11 +51,9 @@
 
 <section class="episodes">
   <h2>Episode <span class="dim small">{{if .Series}}· {{.Series.Title}} ({{.Series.Source}}{{if eq .Series.Source "Otakudesu"}}, Sub Indo{{else}} — softsub, terjemahkan di pemutar{{end}}){{end}}</span></h2>
+  {{template "srcchips" .}}
   {{if .SourceErr}}<div class="alert">{{.SourceErr}}</div>{{end}}
-  <div class="ep-grid">
-    {{range .Episodes}}
-    <a class="ep-btn" href="/watch/{{$.Anime.ID}}/{{.Number}}" title="{{.Title}}">{{.Number}}</a>
-    {{end}}
-  </div>
+  {{if .Episodes}}{{template "eppicker" .}}{{end}}
 </section>
 {{end}}
+{{define "scripts"}}<script src="/static/picker.js"></script>{{end}}

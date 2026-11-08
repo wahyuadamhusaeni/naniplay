@@ -1,0 +1,10 @@
+{{define "title"}}Genre — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">Jelajahi Genre</h2>
+  <p class="dim">Pilih genre untuk melihat anime terpopuler di dalamnya.</p>
+  <div class="genre-grid">
+    {{range .Genres}}<a class="genre-tile" href="/genre/{{.}}">{{.}}</a>{{end}}
+  </div>
+</section>
+{{end}}

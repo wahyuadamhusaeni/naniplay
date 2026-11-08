@@ -152,6 +152,9 @@ const mediaFields = `
 type gqlResponse struct {
 	Data struct {
 		Page struct {
+			PageInfo struct {
+				HasNextPage bool `json:"hasNextPage"`
+			} `json:"pageInfo"`
 			Media           []mediaRaw `json:"media"`
 			AiringSchedules []struct {
 				AiringAt int64    `json:"airingAt"`
@@ -422,3 +425,38 @@ func currentSeason() (string, int) {
 
 // CurrentSeason exposes the running season for display purposes.
 func CurrentSeason() (string, int) { return currentSeason() }
+
+// Genres is the canonical AniList genre list.
+var Genres = []string{
+	"Action", "Adventure", "Comedy", "Drama", "Ecchi", "Fantasy",
+	"Hentai", "Horror", "Mahou Shoujo", "Mecha", "Music", "Mystery",
+	"Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports",
+	"Supernatural", "Thriller",
+}
+
+// ByGenre lists anime of one genre, most popular first, with a
+// has-next-page flag for paging.
+func (c *Client) ByGenre(ctx context.Context, genre string, page int) ([]Anime, bool, error) {
+	if page < 1 {
+		page = 1
+	}
+	gql := `query ($page: Int, $perPage: Int, $genre: String) {
+		Page(page: $page, perPage: $perPage) {
+			pageInfo { hasNextPage }
+			media(type: ANIME, isAdult: false, sort: POPULARITY_DESC, genre_in: [$genre]) {
+				` + mediaFields + `
+			}
+		}
+	}`
+	r, err := c.query(ctx, fmt.Sprintf("genre-%s-%d", genre, page), gql, map[string]any{
+		"page": page, "perPage": 24, "genre": genre,
+	}, 10*time.Minute)
+	if err != nil {
+		return nil, false, err
+	}
+	out := make([]Anime, 0, len(r.Data.Page.Media))
+	for _, m := range r.Data.Page.Media {
+		out = append(out, m.toAnime())
+	}
+	return out, r.Data.Page.PageInfo.HasNextPage, nil
+}

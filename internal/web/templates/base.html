@@ -14,6 +14,7 @@
   <nav class="nav-links">
     <a href="/">Beranda</a>
     <a href="/jadwal">Jadwal</a>
+    <a href="/genre">Genre</a>
     <a href="/daftar-saya">Daftar Saya</a>
     <a href="/riwayat">Riwayat</a>
     <a href="/pengaturan">Pengaturan</a>
@@ -21,15 +22,73 @@
   <form class="nav-search" action="/search" method="get">
     <input type="search" name="q" placeholder="Cari anime…" autocomplete="off">
   </form>
+  <button class="nav-burger" id="navBurger" type="button" aria-label="Buka menu" data-tip="Menu">☰</button>
 </header>
+<div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <span class="logo">NANI<span>PLAY</span><sup>?!</sup></span>
+    <button class="drawer-close" id="drawerClose" type="button" aria-label="Tutup menu">✕</button>
+  </div>
+  <form class="drawer-search" action="/search" method="get">
+    <input type="search" name="q" placeholder="Cari anime…" autocomplete="off">
+    <button class="btn btn-play" type="submit">Cari</button>
+  </form>
+  <nav class="drawer-links">
+    <a href="/">🏠 Beranda</a>
+    <a href="/jadwal">🗓 Jadwal Rilis</a>
+    <a href="/genre">🎭 Genre</a>
+    <a href="/daftar-saya">🔖 Daftar Saya</a>
+    <a href="/riwayat">🕘 Riwayat</a>
+    <a href="/pengaturan">⚙️ Pengaturan</a>
+  </nav>
+  <p class="dim small drawer-foot">NaniPlay — anime sub Indo, gratis.</p>
+</aside>
 <main>
 {{block "content" .}}{{end}}
 </main>
 <footer class="footer">
   <p><strong>NaniPlay</strong> — agregator pemutar anime subtitle Indonesia. Konten berasal dari sumber publik; NaniPlay tidak menyimpan berkas video.</p>
-  <p class="dim">Metadata oleh AniList · Stream oleh Otakudesu · Terinspirasi dari Tatap</p>
+  <p class="dim">Metadata oleh AniList · Stream oleh Otakudesu, HiAnime &amp; AniChan · Terinspirasi dari Tatap</p>
 </footer>
 <script src="/static/app.js"></script>
 {{block "scripts" .}}{{end}}
 </body>
 </html>{{end}}
+
+{{define "card"}}
+<a class="card" href="/anime/{{.ID}}">
+  <div class="card-img"><img loading="lazy" src="{{.Cover}}" alt="{{.Display}}">
+    {{if .NextEpisode}}<span class="card-badge">Ep {{.NextEpisode}} segera</span>{{end}}
+  </div>
+  <p class="card-title">{{.Display}}</p>
+  <p class="card-meta">{{if .Score}}★ {{.Score}}% · {{end}}{{.SeasonYear}}</p>
+</a>
+{{end}}
+
+{{define "srcchips"}}
+<div class="src-picker" role="group" aria-label="Pilih sumber streaming">
+  <span class="src-label">Sumber:</span>
+  <a class="src-chip{{if not .SrcSel}} active{{end}}" href="{{.PagePath}}">Otomatis{{if and (not .SrcSel) .ProviderName}} · {{.ProviderName}}{{end}}</a>
+  <a class="src-chip{{if eq .SrcSel "otakudesu"}} active{{end}}" href="{{.PagePath}}?src=otakudesu" data-tip="Hardsub Indonesia">Otakudesu</a>
+  <a class="src-chip{{if eq .SrcSel "hianime"}} active{{end}}" href="{{.PagePath}}?src=hianime" data-tip="Softsub — terjemahkan di pemutar">HiAnime</a>
+  <a class="src-chip{{if eq .SrcSel "anichan"}} active{{end}}" href="{{.PagePath}}?src=anichan" data-tip="Softsub — terjemahkan di pemutar">AniChan</a>
+</div>
+{{end}}
+
+{{define "eppicker"}}
+<div class="ep-picker">
+  <div class="ep-tools">
+    <input type="search" class="ep-search" placeholder="Cari nomor episode…" autocomplete="off" aria-label="Cari episode">
+    <select class="ep-range" hidden aria-label="Rentang episode"></select>
+    <span class="ep-count dim small"></span>
+  </div>
+  <div class="ep-grid">
+    {{range .Episodes}}
+    {{$pct := index $.Watched .Number}}
+    <a class="ep-btn{{if eq .Number $.CurrentEp}} active{{end}}{{if $pct}} watched{{end}}" href="/watch/{{$.Anime.ID}}/{{.Number}}{{if $.SrcSel}}?src={{$.SrcSel}}{{end}}" data-num="{{.Number}}" title="{{.Title}}">{{.Number}}{{if $pct}}<span class="ep-prog"><span style="width:{{$pct}}%"></span></span>{{end}}</a>
+    {{end}}
+  </div>
+  <p class="ep-none dim" hidden>Tidak ada episode yang cocok dengan pencarian.</p>
+</div>
+{{end}}

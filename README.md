@@ -18,6 +18,13 @@ Satu binary Go: ringan, tanpa akun, tanpa iklan, tanpa runtime tambahan.
 - **Lanjutkan Menonton** — posisi putar tersimpan otomatis per episode (SQLite lokal), lanjut di perangkat mana pun
 - **Lewati Opening/Ending** — tombol skip OP/ED dari data komunitas AniSkip, menyesuaikan durasi berkas
 - **Subtitle lunak (softsub)** — cari subtitle Indonesia/Inggris dari OpenSubtitles tanpa API key, unggah file (.srt/.vtt/.ass), atau ambil dari URL; semua dikonversi ke WebVTT, tersimpan per episode, dengan koreksi desync ±0,5s dari pemutar
+- **AI Fansub (BYOK)** — terjemahan subtitle oleh model AI lewat endpoint
+  OpenAI-compatible milikmu (OpenAI/Gemini/Groq/Ollama/9router); bahasa jauh
+  lebih alami daripada mesin, baris gagal diisi otomatis oleh GTX
+- **Pemain kustom** — menu kualitas video, gambar-dalam-gambar, pintasan
+  keyboard, pemilihan sumber manual (Otomatis/Otakudesu/HiAnime/AniChan),
+  pemilih episode dengan pencarian + rentang + tanda sudah ditonton
+- **Jelajah Genre** — telusuri katalog AniList per genre; drawer menu mobile
 - **Terjemahan otomatis (Google GTX)** — subtitle Inggris apa pun bisa diterjemahkan ke Indonesia sekali klik, tanpa API key; hasilnya tersimpan dan bisa dipakai luring
 - **Jadwal Rilis** — jadwal tayang 7 hari ke depan (WIB)
 - **Anime Terkait** — sekuel, prekuel, dan cerita sampingan di setiap halaman detail

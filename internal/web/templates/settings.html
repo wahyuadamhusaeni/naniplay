@@ -14,6 +14,20 @@
     </div>
   </form>
 
+  <form method="post" action="/pengaturan" class="settings-form">
+    <label>AI Fansub (BYOK) — opsional</label>
+    <p class="dim small">Terjemahkan subtitle dengan model AI pilihanmu lewat endpoint apa pun yang kompatibel dengan OpenAI — OpenAI, OpenRouter, Gemini, Groq, Ollama lokal, atau routermu sendiri (mis. 9router). Hasilnya jauh lebih alami daripada terjemahan mesin. Kunci API hanya disimpan di database NaniPlay di perangkat ini.</p>
+    <div class="settings-stack">
+      <input type="url" name="llm_base" value="{{.LLMBase}}" placeholder="Alamat endpoint, mis. https://api.openai.com/v1">
+      <input type="text" name="llm_model" value="{{.LLMModel}}" placeholder="Nama model, mis. gpt-4o-mini">
+      <input type="password" name="llm_key" placeholder="{{if .LLMKeySet}}Kunci API tersimpan — kosongkan untuk mempertahankan{{else}}Kunci API (boleh kosong untuk endpoint lokal){{end}}" autocomplete="off">
+      {{if .LLMKeySet}}<label class="checkline"><input type="checkbox" name="llm_key_clear" value="1"> Hapus kunci API yang tersimpan</label>{{end}}
+    </div>
+    <div class="settings-row">
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+  </form>
+
   <div class="settings-card">
     <h3>Versi</h3>
     <p>NaniPlay <strong>v{{.Version}}</strong>{{if .Latest}} · Rilis terbaru: <strong>{{.Latest}}</strong>{{end}}</p>

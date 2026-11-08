@@ -146,6 +146,32 @@ func (s *Store) HistoryFor(anilistID, episode int) (*HistoryEntry, error) {
 // ContinueWatching returns the most recent episode per anime, newest first.
 // Deduplication happens in Go so tied timestamps can never surface the
 // same anime twice.
+// EpisodeProgress returns the watched percentage (0-100) per
+// episode of one anime, for episode-picker watched markers.
+func (s *Store) EpisodeProgress(anilistID int) (map[int]int, error) {
+	rows, err := s.db.Query(`SELECT episode, position, duration FROM history WHERE anilist_id = ? AND duration > 0`, anilistID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int]int{}
+	for rows.Next() {
+		var ep int
+		var pos, dur float64
+		if err := rows.Scan(&ep, &pos, &dur); err != nil {
+			return nil, err
+		}
+		pct := int(pos / dur * 100)
+		if pct > 100 {
+			pct = 100
+		}
+		if pct > out[ep] {
+			out[ep] = pct
+		}
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
 	fetch := limit * 5
 	if fetch < 50 {

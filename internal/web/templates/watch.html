@@ -1,14 +1,15 @@
 {{define "title"}}{{.Anime.Display}} Ep {{.Episode}} — NaniPlay{{end}}
 {{define "content"}}
 <section class="watch-wrap">
-  <a class="back-link" href="/anime/{{.Anime.ID}}">← {{.Anime.Display}}</a>
+  <a class="back-link" href="/anime/{{.Anime.ID}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">← {{.Anime.Display}}</a>
   <h1 class="watch-title">{{.Anime.Display}} <span class="dim">— Episode {{.Episode}}</span></h1>
 
+  {{template "srcchips" .}}
   {{if .SourceErr}}
     <div class="alert">{{.SourceErr}}</div>
   {{else}}
-  <div class="player-box">
-    <video id="player" controls playsinline poster="{{.Anime.Banner}}"
+  <div class="player-box" id="playerBox">
+    <video id="player" playsinline poster="{{.Anime.Banner}}"
       data-src="{{.ProxyURL}}"
       data-anilist="{{.Anime.ID}}"
       data-mal="{{.Anime.IDMal}}"
@@ -16,17 +17,43 @@
       data-poster="{{.Anime.Cover}}"
       data-episode="{{.Episode}}"
       data-saved="{{.SavedPos}}"
-      {{if .NextEp}}data-next="/watch/{{.Anime.ID}}/{{.NextEp}}"{{end}}>
+      {{if .NextEp}}data-next="/watch/{{.Anime.ID}}/{{.NextEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}"{{end}}>
     </video>
     <button id="skipBtn" class="skip-btn" type="button" hidden></button>
-    <div class="player-meta dim">{{.Stream.Server}} · {{.Stream.SubLang}}</div>
+    <button class="p-bigplay" id="pBigPlay" type="button" aria-label="Putar" data-tip="Putar">▶</button>
+    <div class="p-controls" id="pControls">
+      <div class="p-seekrow">
+        <span class="p-time" id="pCur">0:00</span>
+        <input type="range" id="pSeek" min="0" max="1000" value="0" step="1" aria-label="Geser posisi putar">
+        <span class="p-time" id="pDur">0:00</span>
+      </div>
+      <div class="p-row">
+        <button class="p-btn" id="pPlay" type="button" aria-label="Putar atau jeda" data-tip="Putar/Jeda (spasi)">▶</button>
+        {{if .PrevEp}}<a class="p-btn" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}" aria-label="Episode sebelumnya" data-tip="Episode {{.PrevEp}}">⏮</a>{{end}}
+        {{if .NextEp}}<a class="p-btn" href="/watch/{{.Anime.ID}}/{{.NextEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}" aria-label="Episode berikutnya" data-tip="Episode {{.NextEp}}">⏭</a>{{end}}
+        <span class="p-vol">
+          <button class="p-btn" id="pMute" type="button" aria-label="Bisukan" data-tip="Bisukan (M)">🔊</button>
+          <input type="range" id="pVol" min="0" max="100" value="100" aria-label="Volume">
+        </span>
+        <span class="p-spacer"></span>
+        <span class="p-quality" id="pQualityWrap" hidden>
+          <button class="p-btn p-quality-btn" id="pQualityBtn" type="button" data-tip="Kualitas video">⚙ <span id="pQualityLabel">Otomatis</span></button>
+          <span class="p-menu" id="pQualityMenu" hidden></span>
+        </span>
+        <button class="p-btn" id="pCC" type="button" aria-label="Subtitle" data-tip="Pengaturan subtitle">CC</button>
+        <button class="p-btn" id="pPiP" type="button" aria-label="Gambar dalam gambar" data-tip="Gambar-dalam-gambar">⧉</button>
+        <button class="p-btn" id="pFull" type="button" aria-label="Layar penuh" data-tip="Layar penuh (F)">⛶</button>
+      </div>
+    </div>
   </div>
+  <div class="player-meta dim">{{.Stream.Server}} · {{.Stream.SubLang}}</div>
 
   <section class="sub-panel" id="subPanel">
     <div class="sub-row">
       <strong class="sub-label">Subtitle</strong>
       <select id="subSelect"><option value="">Tanpa subtitle</option></select>
       <button type="button" id="subTranslate" class="btn btn-ghost" hidden>🌐 Terjemahkan ke Indonesia</button>
+      <button type="button" id="subTranslateAI" class="btn btn-ghost" hidden>🤖 Fansub AI</button>
       <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus</button>
       <span class="sub-offset" title="Geser timing subtitle bila tidak sinkron">
         <button type="button" id="subMinus">−0,5s</button>
@@ -44,22 +71,19 @@
     <p class="dim small" id="subStatus"></p>
   </section>
   <div class="watch-actions">
-    {{if .PrevEp}}<a class="btn btn-ghost" href="/watch/{{.Anime.ID}}/{{.PrevEp}}">⏮ Episode {{.PrevEp}}</a>{{end}}
-    {{if .NextEp}}<a class="btn btn-play" href="/watch/{{.Anime.ID}}/{{.NextEp}}">Episode {{.NextEp}} ⏭</a>{{end}}
+    {{if .PrevEp}}<a class="btn btn-ghost" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">⏮ Episode {{.PrevEp}}</a>{{end}}
+    {{if .NextEp}}<a class="btn btn-play" href="/watch/{{.Anime.ID}}/{{.NextEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">Episode {{.NextEp}} ⏭</a>{{end}}
   </div>
   {{end}}
 
   {{if .Episodes}}
   <h2 class="ep-heading">Semua Episode</h2>
-  <div class="ep-grid">
-    {{range .Episodes}}
-    <a class="ep-btn{{if eq .Number $.Episode}} active{{end}}" href="/watch/{{$.Anime.ID}}/{{.Number}}">{{.Number}}</a>
-    {{end}}
-  </div>
+  {{template "eppicker" .}}
   {{end}}
 </section>
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
 <script src="/static/player.js"></script>
+<script src="/static/picker.js"></script>
 {{end}}

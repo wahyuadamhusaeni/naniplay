@@ -4,6 +4,41 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.8.0] — 2026-11-08
+
+Rilis pengalaman menonton (dari masukan pengguna) + AI Fansub.
+
+### Ditambahkan
+- **AI Fansub (BYOK)**: terjemahkan subtitle dengan model AI lewat endpoint
+  OpenAI-compatible apa pun (OpenAI, OpenRouter, Gemini, Groq, Ollama, 9router).
+  Diatur di Pengaturan (alamat endpoint, model, kunci API — tersimpan lokal).
+  Prompt fansub profesional: bahasa alami, sapaan khas anime dipertahankan.
+  Baris yang dijatuhkan model diisi otomatis oleh terjemahan mesin GTX (hibrida —
+  tidak pernah gagal total), dan kegagalan endpoint dilaporkan apa adanya.
+- **Pemain kustom penuh**: control bar baru (putar/jeda, seek bar dengan indikator
+  buffered, volume, waktu), tombol episode sebelum/berikutnya, menu kualitas
+  video (Otomatis/1080p/720p/… dari level HLS), gambar-dalam-gambar, layar penuh,
+  tombol CC, klik video untuk putar/jeda, klik ganda untuk layar penuh, control
+  bar menyembunyi otomatis, dan pintasan keyboard (spasi/K, panah, F, M, N).
+  Tombol Lewati OP/ED dipindah ke posisi yang tidak tertutup control bar.
+- **Pemilihan sumber manual**: chip Otomatis/Otakudesu/HiAnime/AniChan di halaman
+  detail dan tonton (`?src=`), menonaktifkan fallback otomatis; pesan jelas bila
+  judul tidak tersedia di sumber pilihan.
+- **Pemilih episode cerdas**: pencarian nomor episode, rentang per 100 episode
+  untuk seri panjang (otomatis membuka rentang episode aktif), dan tanda progres
+  tontonan per episode dari riwayat.
+- **Jelajah genre**: halaman /genre (18 genre AniList) dan daftar per genre
+  terpopuler dengan penomoran halaman; chip genre di detail kini bisa diklik.
+- **Drawer menu mobile**: navigasi meluncur dari kanan (☰) lengkap dengan
+  pencarian; tooltip pada tombol-tombol pemain dan pemilih sumber.
+
+### Diperbaiki
+- **Halaman pencarian rusak diam-diam** sejak awal: hasil tidak pernah tampil
+  (definisi kartu poster tinggal di berkas template lain). Kartu kini dibagikan
+  dari template dasar dan pencarian menampilkan jumlah hasil.
+- Judul anime pada kartu poster dibatasi maksimal 2 baris dengan elipsis —
+  judul panjang tidak lagi merusak tata letak rail/grid.
+
 ## [0.6.0] - 2026-11-08
 
 ### Ditambahkan

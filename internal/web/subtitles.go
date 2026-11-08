@@ -323,6 +323,54 @@ func (s *Server) apiSubtitleTrack(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, subtitle.ToVTT(cues, offset))
 }
 
+// apiSubtitleTranslateAI translates a saved track into Indonesian
+// with the user's own OpenAI-compatible endpoint (BYOK AI fansub)
+// and saves the result as a new track.
+func (s *Server) apiSubtitleTranslateAI(w http.ResponseWriter, r *http.Request) {
+	trackID := r.PathValue("trackID")
+	cfg := s.llmConfig()
+	if !cfg.Configured() {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Endpoint AI belum diatur — isi alamat endpoint dan nama model dulu di Pengaturan."})
+		return
+	}
+	track, err := s.db.SubtitleTrack(trackID)
+	if err != nil || track == nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "Track tidak ditemukan"})
+		return
+	}
+	cues, err := subtitle.Parse(track.Content)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Isi track tidak terbaca"})
+		return
+	}
+	if track.Source == "opensubtitles" {
+		cues = subtitle.StripAds(cues)
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 600*time.Second)
+	defer cancel()
+	translated, err := subtitle.TranslateCuesLLM(ctx, cues, cfg)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "Fansub AI gagal: " + err.Error()})
+		return
+	}
+	newTrack := store.SubtitleTrack{
+		ID:        newTrackID(),
+		AnilistID: track.AnilistID,
+		Episode:   track.Episode,
+		Label:     track.Label + " — Indonesia (AI Fansub)",
+		Lang:      "id",
+		Source:    "llm",
+		Content:   subtitle.ToVTT(translated, 0),
+	}
+	if err := s.db.SaveSubtitleTrack(newTrack); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id": newTrack.ID, "label": newTrack.Label, "lang": newTrack.Lang, "source": newTrack.Source,
+	})
+}
+
 // apiSubtitleTranslate machine-translates a saved track into
 // Indonesian via the zero-key Google GTX endpoint and saves the
 // result as a new track, leaving the original untouched.
