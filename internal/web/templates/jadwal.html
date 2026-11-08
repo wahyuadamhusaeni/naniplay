@@ -4,7 +4,7 @@
   <h2 class="page-h">Jadwal Rilis <span class="dim small">7 hari ke depan · WIB</span></h2>
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
   {{range .Days}}
-  <h3 class="sched-day">{{.Label}}</h3>
+  <h3 class="sched-day{{if .Today}} sched-today{{end}}">{{.Label}}</h3>
   <div class="sched-list">
     {{range .Items}}
     <a class="sched-row" href="/anime/{{.Entry.Anime.ID}}">

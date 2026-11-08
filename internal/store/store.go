@@ -405,6 +405,12 @@ func (s *Store) DeleteHistory(key string) error {
 	return err
 }
 
+// ClearHistory removes every history row.
+func (s *Store) ClearHistory() error {
+	_, err := s.db.Exec(`DELETE FROM history`)
+	return err
+}
+
 // GetSetting returns a settings value, or "" when unset.
 func (s *Store) GetSetting(key string) string {
 	var v string

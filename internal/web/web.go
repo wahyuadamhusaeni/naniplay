@@ -156,6 +156,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /pengaturan", s.saveSettings)
 
 	mux.HandleFunc("POST /api/history", s.apiSaveHistory)
+	mux.HandleFunc("POST /api/history/delete", s.deleteHistory)
+	mux.HandleFunc("POST /api/history/clear", s.clearHistory)
 	mux.HandleFunc("GET /api/history/{id}/{ep}", s.apiGetHistory)
 	mux.HandleFunc("POST /api/prefs/sub-lang", s.apiPrefSubLang)
 	mux.HandleFunc("POST /api/settings/test", s.apiSettingsTest)
@@ -267,6 +269,31 @@ func relTime(t time.Time) string {
 	default:
 		return strconv.Itoa(int(d.Hours()/24)) + " hari lalu"
 	}
+}
+
+// deleteHistory removes one title (all its episodes) from history.
+func (s *Server) deleteHistory(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Key == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "key wajib"})
+		return
+	}
+	if err := s.db.DeleteHistory(body.Key); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// clearHistory wipes the whole watch history.
+func (s *Server) clearHistory(w http.ResponseWriter, r *http.Request) {
+	if err := s.db.ClearHistory(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
@@ -960,6 +987,7 @@ type schedItem struct {
 
 type schedDay struct {
 	Label string
+	Today bool
 	Items []schedItem
 }
 
@@ -994,7 +1022,7 @@ func (s *Server) schedulePage(w http.ResponseWriter, r *http.Request) {
 			} else if key == from.AddDate(0, 0, 1).Format("2006-01-02") {
 				label = "Besok — " + label
 			}
-			day = &schedDay{Label: label}
+			day = &schedDay{Label: label, Today: key == from.Format("2006-01-02")}
 			byDay[key] = day
 			order = append(order, key)
 		}

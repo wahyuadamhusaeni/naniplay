@@ -224,6 +224,38 @@
     pSeekTip.style.left = (f * 100) + "%";
   }
   if (box && pPlay) {
+  // --- Putar otomatis episode berikutnya (gaya Netflix) ---
+  var nextAnchor = box.querySelector(".np-next");
+  if (nextAnchor) {
+    var upNext = document.createElement("div");
+    upNext.className = "np-upnext";
+    upNext.hidden = true;
+    upNext.innerHTML = '<p class="np-upnext-label">Episode Berikutnya</p>' +
+      '<div class="np-upnext-row"><a class="np-upnext-play" href="' + nextAnchor.getAttribute("href") + '">▶ Putar Sekarang</a>' +
+      '<span class="np-upnext-count"></span>' +
+      '<button type="button" class="np-upnext-x" aria-label="Nanti saja">✕</button></div>';
+    box.appendChild(upNext);
+    var upDismissed = false;
+    var upCount = upNext.querySelector(".np-upnext-count");
+    upNext.querySelector(".np-upnext-x").addEventListener("click", function () {
+      upDismissed = true;
+      upNext.hidden = true;
+    });
+    video.addEventListener("timeupdate", function () {
+      if (upDismissed || !video.duration) return;
+      var left = video.duration - video.currentTime;
+      if (left <= 20 && left > 0) {
+        upNext.hidden = false;
+        upCount.textContent = "mulai dalam " + Math.ceil(left) + " dtk";
+      } else if (left > 25) {
+        upNext.hidden = true;
+      }
+    });
+    video.addEventListener("ended", function () {
+      if (!upDismissed) window.location.href = nextAnchor.getAttribute("href");
+    });
+  }
+
     video.addEventListener("play", function () {
       box.classList.add("started");
       syncPlayUI(); pokeUI();

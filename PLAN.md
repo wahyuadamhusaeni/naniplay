@@ -170,3 +170,10 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
   pengecualian adalah biner Windows mandiri dengan database
   lokalnya sendiri; untuk itu cukup arahkan pemakaian ke instance
   server, bukan membangun mekanisme sinkronisasi.
+
+## Fase 9 — Penyempurnaan menyeluruh & README (v1.6.0)
+
+- [x] README ditulis ulang: anime + film + series, fitur berkelompok, tabel env, kredit di akhir
+- [x] Autoplay episode berikutnya (kartu hitung mundur 20 dtk terakhir + lanjut otomatis)
+- [x] Hapus riwayat per judul & hapus semua (endpoint memakai DeleteHistory yang sudah ada)
+- [x] Penanda hari ini di Jadwal; meta/OG/theme-color; footer mencerminkan cakupan penuh

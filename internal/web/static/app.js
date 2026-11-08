@@ -80,3 +80,26 @@
     upd();
   });
 })();
+
+// Riwayat: hapus per judul & hapus semua (halaman Riwayat).
+(function () {
+  document.querySelectorAll("[data-delhist]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      fetch("/api/history/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: btn.dataset.delhist })
+      }).then(function () {
+        var card = btn.closest(".hist-card");
+        if (card) card.remove();
+      }).catch(function () {});
+    });
+  });
+  var clear = document.getElementById("histClear");
+  if (clear) clear.addEventListener("click", function () {
+    if (!window.confirm("Hapus semua riwayat tontonan?")) return;
+    fetch("/api/history/clear", { method: "POST" })
+      .then(function () { window.location.reload(); })
+      .catch(function () {});
+  });
+})();
