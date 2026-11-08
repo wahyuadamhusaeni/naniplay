@@ -79,46 +79,7 @@
       </div>
     </div>
   </div>
-  {{if .Embed}}
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:.7rem 0 .2rem">
-    <button class="btn btn-ghost" id="modeNative" type="button" style="border-color:#e50914;color:#fff">▶ Player NaniPlay</button>
-    <button class="btn btn-ghost" id="modeEmbed" type="button">🖥 Server Embed (player asli)</button>
-  </div>
-  <div id="embedBox" style="display:none;position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden">
-    <iframe id="embedFrame" title="Player embed" style="position:absolute;inset:0;width:100%;height:100%;border:0" allowfullscreen referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"></iframe>
-  </div>
-  <p class="dim small" style="margin:.35rem 0 0">Mode Embed memakai player asli dari sumbernya — iklan &amp; kontrol dari mereka, dan subtitle/resume NaniPlay tidak berlaku di mode ini. Pakai bila Player NaniPlay tidak memutar.</p>
-  <script>
-  (function () {
-    var box = document.querySelector(".player-box");
-    var eb = document.getElementById("embedBox");
-    var fr = document.getElementById("embedFrame");
-    var bN = document.getElementById("modeNative");
-    var bE = document.getElementById("modeEmbed");
-    var url = "{{.Embed}}";
-    var loaded = false;
-    function mark(on, off) {
-      on.style.borderColor = "#e50914"; on.style.color = "#fff";
-      off.style.borderColor = ""; off.style.color = "";
-    }
-    bE.addEventListener("click", function () {
-      if (!loaded) { fr.src = url; loaded = true; }
-      if (box) box.style.display = "none";
-      eb.style.display = "block";
-      var v = document.getElementById("player");
-      if (v) { try { v.pause(); } catch (e) {} }
-      mark(bE, bN);
-    });
-    bN.addEventListener("click", function () {
-      eb.style.display = "none";
-      if (box) box.style.display = "";
-      if (loaded) { fr.src = "about:blank"; loaded = false; }
-      mark(bN, bE);
-    });
-  })();
-  </script>
-  {{end}}
-  {{if eq .Server "KitaNonton"}}<div class="player-meta dim">{{.Server}} · Player NaniPlay memutar lewat server — bila tidak memutar, coba mode Server Embed di atas</div>{{else}}<div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>{{end}}
+  {{if eq .Server "KitaNonton"}}<div class="player-meta dim">{{.Server}} · diputar lewat server NaniPlay</div>{{else}}<div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>{{end}}
 
   <div class="watch-info">
     <img class="wi-poster" src="{{.Poster}}" alt="" loading="lazy">

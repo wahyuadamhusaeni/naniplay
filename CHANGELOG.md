@@ -4,6 +4,16 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.8.3] — 2026-11-08
+
+### Dihapus
+- Mode Server Embed (v1.8.2) dibuang lagi di hari yang sama: embed
+  JuicyCodes ternyata terkunci referer ke domain KitaNonton sendiri
+  (terukur: referer kitanonton 200, referer lain/tanpa referer 403
+  di kedua host server), jadi dari domain mana pun selain milik
+  mereka embed-nya selalu 403 dan browser tidak bisa memalsukan
+  referer. Jalur putar satu-satunya tetap proxy server (v1.8.1).
+
 ## [1.8.2] — 2026-11-08
 
 ### Ditambahkan
