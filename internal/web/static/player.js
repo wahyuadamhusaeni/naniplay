@@ -185,7 +185,7 @@
     if (!box) return;
     box.classList.add("ui-on");
     clearTimeout(uiTimer);
-    uiTimer = setTimeout(function () { box.classList.remove("ui-on"); }, 2600);
+    uiTimer = setTimeout(function () { box.classList.remove("ui-on"); }, 5000);
   }
   function paintSeek() {
     if (!video.duration) return;
