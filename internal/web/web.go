@@ -890,6 +890,7 @@ type settingsData struct {
 	PrefQuality string
 	PrefSubLang string
 	LLMPrompt   string
+	SubdlKeySet bool
 	Version     string
 	Latest      string
 	Update      bool
@@ -922,6 +923,7 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 		PrefQuality: s.db.GetSetting("pref_quality"),
 		PrefSubLang: s.subPref(),
 		LLMPrompt:   s.db.GetSetting("llm_prompt"),
+		SubdlKeySet: s.db.GetSetting("subdl_key") != "",
 		Version:     Version,
 		Latest:      latest,
 		Update:      latest != "" && latest != "v"+Version,
@@ -1159,6 +1161,15 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 			_ = s.db.SetSetting("llm_key", "")
 		} else if newKey != "" {
 			_ = s.db.SetSetting("llm_key", newKey)
+		}
+	}
+	if _, present := r.Form["subdl_key"]; present {
+		// SubDL API key (cinema subtitle search). Same handling as
+		// the LLM key: only overwritten when typed, clearable.
+		if r.FormValue("subdl_key_clear") == "1" {
+			_ = s.db.SetSetting("subdl_key", "")
+		} else if k := strings.TrimSpace(r.FormValue("subdl_key")); k != "" {
+			_ = s.db.SetSetting("subdl_key", k)
 		}
 	}
 	if _, present := r.Form["idlix_base"]; present {

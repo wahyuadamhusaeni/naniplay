@@ -9,7 +9,7 @@
     <p class="dim">Gerbang penyedia kadang menolak sesi baru berturut-turut. Tunggu sebentar lalu <a href="">muat ulang halaman ini</a>, atau kembali ke <a href="{{.Back}}">halaman detail</a>.</p>
   {{else}}
   <div class="player-box" id="playerBox">
-    <video id="player" playsinline data-quality="{{.PrefQuality}}" data-subpref="{{.PrefSubLang}}" poster="{{.Poster}}"
+    <video id="player" playsinline data-quality="{{.PrefQuality}}" data-subpref="{{.PrefSubLang}}" data-subsource="SubDL" poster="{{.Poster}}"
       data-src="{{.ProxyURL}}"
       data-anilist="0" data-key="{{.Key}}"
       data-title="{{.Title}}"
@@ -83,5 +83,5 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=11100"></script>
+<script src="/static/player.js?v=12000"></script>
 {{end}}

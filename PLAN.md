@@ -131,6 +131,17 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)* *(v1.0.0)*
 - [x] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis *(v1.0.0)*
 
+## Fase 6 — Pengaturan ala Tatap & SubDL (dari audit repo pembanding)
+
+- [x] Pengaturan Pemutaran: sumber utama, kualitas bawaan, bahasa
+      subtitle bawaan *(v1.1.0)*
+- [x] Bahasa subtitle dipelajari dari pilihan di pemutar dan
+      diterapkan kembali di episode berikutnya *(v1.1.0)*
+- [x] Prompt Fansub AI dapat disunting; deteksi penyedia dari kunci
+      API; tombol Tes koneksi untuk semua alamat *(v1.1.0–v1.1.1)*
+- [x] Subtitle online Film & Series via SubDL (kunci API pengguna,
+      pencarian per IMDb ID + season/episode) *(v1.2.0)*
+
 ## Di luar rencana (keputusan 2026-11-08)
 
 - Mode TV dan aplikasi Android — tidak dikerjakan kecuali pemilik

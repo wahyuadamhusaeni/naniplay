@@ -217,8 +217,11 @@ func (s *Server) apiSubtitleList(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("q") == "online" {
 		if anilistID, isAnime := store.ParseAnimeKey(key); isAnime {
 			resp["results"] = s.searchOnlineSubtitles(r.Context(), anilistID, episode)
-		} else {
+		} else if s.db.GetSetting("subdl_key") == "" {
 			resp["results"] = []subtitle.Candidate{}
+			resp["note"] = "Pencarian subtitle film/series memakai SubDL — atur kunci API SubDL (gratis, subdl.com) di Pengaturan dulu."
+		} else {
+			resp["results"] = s.searchSubDLSubtitles(r.Context(), key, episode)
 		}
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -263,17 +266,52 @@ func (s *Server) searchOnlineSubtitles(ctx context.Context, anilistID, episode i
 	return out
 }
 
-// apiSubtitleFetch downloads one online candidate and saves it.
+// searchSubDLSubtitles finds cinema subtitles on SubDL using the
+// IDLIX detail's IMDb id (falling back to the title). Cinema history
+// encodes series episodes as season*1000+episode.
+func (s *Server) searchSubDLSubtitles(ctx context.Context, key string, episode int) []subtitle.Candidate {
+	apiKey := s.db.GetSetting("subdl_key")
+	ctx, cancel := context.WithTimeout(ctx, 40*time.Second)
+	defer cancel()
+	q := subtitle.SubDLQuery{}
+	switch {
+	case strings.HasPrefix(key, "movie:"):
+		d, err := s.idlix.Movie(ctx, strings.TrimPrefix(key, "movie:"))
+		if err != nil || d == nil {
+			return []subtitle.Candidate{}
+		}
+		q.Type = "movie"
+		q.IMDb = d.ImdbID
+		q.Name = d.Title
+	case strings.HasPrefix(key, "series:"):
+		d, err := s.idlix.SeriesDetail(ctx, strings.TrimPrefix(key, "series:"))
+		if err != nil || d == nil {
+			return []subtitle.Candidate{}
+		}
+		q.Type = "tv"
+		q.IMDb = d.ImdbID
+		q.Name = d.Title
+		q.Season = episode / 1000
+		q.Episode = episode % 1000
+	default:
+		return []subtitle.Candidate{}
+	}
+	out, err := subtitle.SearchSubDL(ctx, apiKey, q)
+	if err != nil {
+		return []subtitle.Candidate{}
+	}
+	return out
+}
+
+// apiSubtitleFetch downloads one online candidate and saves it:
+// OpenSubtitles for anime keys, SubDL for cinema keys.
 func (s *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request) {
 	key, episode, ok := mediaKeyEp(r)
 	if !ok {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
 		return
 	}
-	if _, isAnime := store.ParseAnimeKey(key); !isAnime {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Pencarian online hanya untuk anime"})
-		return
-	}
+	_, isAnime := store.ParseAnimeKey(key)
 	var body struct {
 		Source string `json:"source"`
 		ID     string `json:"id"`
@@ -284,22 +322,36 @@ func (s *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "body tidak valid"})
 		return
 	}
-	if body.Source != "opensubtitles" || body.ID == "" {
+	if body.ID == "" || (body.Source != "opensubtitles" && body.Source != "subdl") {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "sumber tidak didukung"})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	if body.Source == "opensubtitles" && !isAnime {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "OpenSubtitles hanya untuk anime"})
+		return
+	}
+	if body.Source == "subdl" && isAnime {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "SubDL hanya untuk film & series"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	text, err := subtitle.DownloadOpenSubtitles(ctx, body.ID)
+	var text string
+	var err error
+	if body.Source == "subdl" {
+		text, err = subtitle.DownloadSubDL(ctx, body.ID)
+	} else {
+		text, err = subtitle.DownloadOpenSubtitles(ctx, body.ID)
+	}
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error()})
 		return
 	}
 	label := body.Label
 	if label == "" {
-		label = "OpenSubtitles " + body.ID
+		label = body.Source + " " + body.ID
 	}
-	s.saveTrackKey(w, key, episode, label, body.Lang, "opensubtitles", text)
+	s.saveTrackKey(w, key, episode, label, body.Lang, body.Source, text)
 }
 
 // apiSubtitleExternal fetches a subtitle from a user-supplied URL.

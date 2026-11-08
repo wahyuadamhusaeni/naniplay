@@ -90,6 +90,18 @@
     <p class="test-note dim small" id="test-idlix"></p>
   </form>
 
+  <form method="post" action="/pengaturan" class="settings-form">
+    <h3>Subtitle Film &amp; Series (SubDL) — opsional</h3>
+    <p class="dim small">Pencarian subtitle online untuk Film &amp; Series memakai <a href="https://subdl.com" target="_blank" rel="noopener">SubDL</a>. Daftar gratis di sana, buat API key, lalu tempel di sini. Tanpa kunci ini, subtitle sinema hanya berasal dari host video. Kunci hanya disimpan di database NaniPlay di perangkat ini.</p>
+    <div class="settings-stack">
+      <input type="password" name="subdl_key" placeholder="{{if .SubdlKeySet}}Kunci SubDL tersimpan — kosongkan untuk mempertahankan{{else}}Kunci API SubDL{{end}}" autocomplete="off">
+      {{if .SubdlKeySet}}<label class="checkline"><input type="checkbox" name="subdl_key_clear" value="1"> Hapus kunci SubDL yang tersimpan</label>{{end}}
+    </div>
+    <div class="settings-row">
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+  </form>
+
   <div class="settings-card">
     <h3>Versi</h3>
     <p>NaniPlay <strong>v{{.Version}}</strong>{{if .Latest}} · Rilis terbaru: <strong>{{.Latest}}</strong>{{end}}</p>

@@ -512,12 +512,13 @@
       });
     });
     document.getElementById("subSearch").addEventListener("click", function () {
-      subSay("Mencari subtitle online (OpenSubtitles)… bisa 10–30 detik.");
+      subSay("Mencari subtitle online (" + (video.dataset.subsource || "OpenSubtitles") + ")… bisa 10–30 detik.");
       subResults.innerHTML = "";
       fetch(subBase + "?q=online")
         .then(function (r) { return r.json(); })
         .then(function (data) {
           var results = data.results || [];
+          if (data.note) { subSay(data.note); return; }
           if (!results.length) {
             subSay("Tidak ditemukan subtitle online yang cocok untuk episode ini. Coba unggah file atau tempel URL.");
             return;
