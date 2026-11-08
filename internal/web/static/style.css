@@ -122,10 +122,10 @@ img { display: block; max-width: 100%; }
 .chip { background: rgba(255,255,255,.14); padding: .22rem .6rem; border-radius: 999px; font-size: .78rem; }
 .continue-note a { color: var(--red); font-weight: 700; }
 .episodes { padding: 1rem 3.5vw 2rem; }
-.ep-grid { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ep-grid { display: flex; flex-wrap: wrap; gap: .45rem; }
 .ep-btn {
-  min-width: 52px; text-align: center; padding: .55rem .4rem; border-radius: 4px;
-  background: var(--bg-card); font-weight: 700; font-size: .95rem;
+  box-sizing: border-box; min-width: 48px; text-align: center; padding: .5rem .2rem; border-radius: 4px;
+  background: var(--bg-card); font-weight: 700; font-size: .93rem;
 }
 .ep-btn:hover { background: var(--red); }
 .ep-btn.active { background: var(--red); color: #fff; }
@@ -301,7 +301,7 @@ body.no-scroll { overflow: hidden; }
   background: #000; border: 1px solid #555; color: #fff; border-radius: 4px;
   padding: .55rem .8rem; font-size: .95rem; outline: none;
 }
-.ep-search { flex: 0 1 260px; }
+.ep-search { flex: 1 1 100%; }
 .ep-search:focus, .ep-range:focus { border-color: #fff; }
 .ep-btn { position: relative; overflow: hidden; }
 .ep-btn.watched { box-shadow: inset 0 0 0 1px #4d4d4d; }
