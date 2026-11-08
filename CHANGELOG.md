@@ -4,6 +4,12 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.5] — 2026-11-08
+
+### Ditambah
+- Log diagnostik `[indo-raw]` pada proxy embed (metode, host+tujuan
+  upstream, status) untuk menelusuri kegagalan pemutar Abyss.
+
 ## [1.9.4] — 2026-11-08
 
 ### Diperbaiki

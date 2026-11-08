@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -190,6 +191,7 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	for _, ck := range resp.Header["Set-Cookie"] {
 		w.Header().Add("Set-Cookie", rewriteEmbedCookie(ck))
 	}
+	log.Printf("[indo-raw] %s %s%s -> %d %s (ref %s)", r.Method, u.Scheme+"://"+u.Host, u.Path, status, ctype, referer)
 	br := bufio.NewReader(body)
 	isPlaylist := strings.Contains(ctype, "mpegurl")
 	if !isPlaylist {
