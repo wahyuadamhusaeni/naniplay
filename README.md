@@ -24,6 +24,7 @@ Satu binary Go: ringan, tanpa akun, tanpa iklan, tanpa runtime tambahan.
 - **Daftar Saya** — favorit tersimpan lokal
 - **Metadata AniList** — katalog, pencarian, musim, dan detail anime dari API publik AniList
 - **Stream Sub Indo (Otakudesu)** — pencarian sumber otomatis berdasarkan judul (pencocokan berbasis skor + jumlah episode), daftar episode, dan pemutar HLS lewat proxy bawaan
+- **Sumber cadangan HiAnime** — bila Otakudesu tidak punya sebuah judul, katalog HiAnime mengambil alih otomatis; subtitle lunaknya terimpor dan siap diterjemahkan ke Indonesia
 - **Pengaturan** — ganti domain sumber dari UI bila sumber berpindah domain; cek versi & rilis baru
 - **Satu binary** — jalan di VPS/home server sebagai web, atau sebagai aplikasi portable di Windows (klik, browser terbuka)
 

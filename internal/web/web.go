@@ -19,6 +19,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/aniskip"
 	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
+	"github.com/wahyuadamhusaeni/naniplay/internal/source/hianime"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/otakudesu"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
 )
@@ -31,14 +32,16 @@ var Version = "0.2.0"
 
 // Server bundles the HTTP handlers and their dependencies.
 type Server struct {
-	anilist *anilist.Client
-	aniskip *aniskip.Client
-	otaku   *otakudesu.Client
-	db      *store.Store
-	tpl     map[string]*template.Template
+	anilist   *anilist.Client
+	aniskip   *aniskip.Client
+	otaku     *otakudesu.Client
+	hi        *hianime.Client
+	providers map[string]source.Provider
+	db        *store.Store
+	tpl       map[string]*template.Template
 
 	mu       sync.Mutex
-	matches  map[int]matchEntry // anilist id -> otakudesu match
+	matches  map[int]matchEntry // anilist id -> source match
 	episodes map[int][]source.Episode
 
 	relMu     sync.Mutex
@@ -47,8 +50,9 @@ type Server struct {
 }
 
 type matchEntry struct {
-	series *source.Series
-	at     time.Time
+	series   *source.Series
+	provider string // provider id that produced the match
+	at       time.Time
 }
 
 // New builds a Server. A saved otakudesu_base setting overrides the
@@ -57,10 +61,17 @@ func New(db *store.Store, otakuBase string) (*Server, error) {
 	if saved := db.GetSetting("otakudesu_base"); saved != "" {
 		otakuBase = saved
 	}
+	otaku := otakudesu.New(otakuBase)
+	hi := hianime.New("")
 	s := &Server{
-		anilist:  anilist.New(),
-		aniskip:  aniskip.New(),
-		otaku:    otakudesu.New(otakuBase),
+		anilist: anilist.New(),
+		aniskip: aniskip.New(),
+		otaku:   otaku,
+		hi:      hi,
+		providers: map[string]source.Provider{
+			otaku.Name(): otaku,
+			hi.Name():    hi,
+		},
 		db:       db,
 		tpl:      map[string]*template.Template{},
 		matches:  map[int]matchEntry{},
@@ -218,12 +229,12 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	if rels, err := s.anilist.Relations(r.Context(), id); err == nil {
 		data.Relations = rels
 	}
-	series, eps := s.matchEpisodes(r.Context(), a)
+	series, eps, _ := s.matchEpisodes(r.Context(), a)
 	if series != nil {
 		data.Series = series
 		data.Episodes = eps
 	} else {
-		data.SourceErr = "Belum ditemukan di sumber streaming (Otakudesu)."
+		data.SourceErr = "Belum ditemukan di sumber streaming (Otakudesu/HiAnime)."
 	}
 	if cw, err := s.db.ContinueWatching(50); err == nil {
 		for i := range cw {
@@ -236,26 +247,35 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "detail", data)
 }
 
-// matchEpisodes resolves (and caches) the Otakudesu series + episodes
-// for an AniList anime.
-func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.Series, []source.Episode) {
+// matchEpisodes resolves (and caches) the streaming series +
+// episodes for an AniList anime. Otakudesu (Sub Indo hardsub) is
+// tried first; HiAnime is the fallback when Otakudesu has no match —
+// its softsubs can be machine-translated in the player. The third
+// return value is the winning provider's id.
+func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.Series, []source.Episode, string) {
 	s.mu.Lock()
 	if m, ok := s.matches[a.ID]; ok && time.Since(m.at) < 30*time.Minute {
 		eps := s.episodes[a.ID]
 		s.mu.Unlock()
-		return m.series, eps
+		return m.series, eps, m.provider
 	}
 	s.mu.Unlock()
 
-	series, eps, err := s.otaku.Match(ctx, []string{a.Title.Romaji, a.Title.English}, a.Episodes)
+	titles := []string{a.Title.Romaji, a.Title.English}
+	series, eps, err := s.otaku.Match(ctx, titles, a.Episodes)
+	provider := s.otaku.Name()
 	if err != nil || series == nil {
-		return nil, nil
+		series, eps, err = s.hi.Match(ctx, titles, a.Episodes)
+		provider = s.hi.Name()
+	}
+	if err != nil || series == nil {
+		return nil, nil, ""
 	}
 	s.mu.Lock()
-	s.matches[a.ID] = matchEntry{series: series, at: time.Now()}
+	s.matches[a.ID] = matchEntry{series: series, provider: provider, at: time.Now()}
 	s.episodes[a.ID] = eps
 	s.mu.Unlock()
-	return series, eps
+	return series, eps, provider
 }
 
 type watchData struct {
@@ -283,7 +303,7 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := watchData{Anime: a, Episode: ep}
-	series, eps := s.matchEpisodes(r.Context(), a)
+	series, eps, providerName := s.matchEpisodes(r.Context(), a)
 	if series == nil {
 		data.SourceErr = "Sumber streaming untuk judul ini belum ditemukan."
 		s.render(w, "watch", data)
@@ -307,13 +327,20 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 		s.render(w, "watch", data)
 		return
 	}
-	stream, err := s.otaku.Resolve(r.Context(), target.URL)
+	provider := s.providers[providerName]
+	if provider == nil {
+		provider = s.otaku
+	}
+	stream, err := provider.Resolve(r.Context(), target.URL)
 	if err != nil {
 		data.SourceErr = "Gagal menyiapkan stream: " + err.Error()
 		s.render(w, "watch", data)
 		return
 	}
 	data.Stream = stream
+	if len(stream.Subtitles) > 0 {
+		s.importStreamSubtitles(r.Context(), a, ep, stream)
+	}
 	data.ProxyURL = proxyURLFor(stream)
 	if h, err := s.db.HistoryFor(id, ep); err == nil && h != nil {
 		data.SavedPos = h.Position

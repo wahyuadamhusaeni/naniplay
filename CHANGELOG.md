@@ -4,6 +4,29 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.5.0] - 2026-11-08
+
+### Ditambahkan
+- **Sumber kedua: HiAnime** — katalog raksasa hianime.at dengan softsub
+  multi-bahasa. Pipeline: pencarian (nama Inggris + romaji), daftar
+  episode, daftar server, lalu dekripsi AES-256-CBC payload Megaplay
+  untuk master HLS-nya.
+- **Fallback otomatis antar sumber** — Otakudesu tetap utama (Sub Indo
+  hardsub); bila sebuah judul tidak ditemukan di sana, HiAnime
+  mengambil alih tanpa terasa. Halaman detail kini menampilkan sumber
+  yang melayani judul tersebut.
+- **Subtitle bawaan HiAnime terimpor otomatis** — track softsub dari
+  stream (Inggris diprioritaskan, maks 4) tersimpan sebagai track
+  lokal: bisa dipilih di pemutar dan langsung diterjemahkan ke
+  Indonesia dengan GTX.
+- Proxy HLS kini mengenali segmen TS yang disamarkan dengan awalan
+  sampah 252 byte (pola beberapa CDN sumber) dan membuangnya.
+
+### Catatan
+- Server lama ZokoAnime (satu-satunya pilihan untuk sebagian kecil
+  judul) belum didukung; judul seperti itu menampilkan pesan sumber
+  belum tersedia.
+
 ## [0.4.0] - 2026-11-08
 
 ### Ditambahkan
@@ -79,6 +102,7 @@ versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 - Satu binary Go untuk Web (self-hosted) dan Windows (portable, membuka browser).
 - Workflow rilis GitHub Actions: zip Windows + tarball Linux per tag versi.
 
+[0.5.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.5.0
 [0.4.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.4.0
 [0.3.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.3.0
 [0.2.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.2.0

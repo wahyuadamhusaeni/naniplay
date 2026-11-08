@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
+	"github.com/wahyuadamhusaeni/naniplay/internal/source"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
 	"github.com/wahyuadamhusaeni/naniplay/internal/subtitle"
 )
@@ -20,6 +22,68 @@ import (
 // Subtitle endpoints: softsub tracks are fetched or uploaded per
 // episode, stored raw in SQLite, and served as WebVTT with an
 // optional timing offset (manual desync correction).
+
+// importStreamSubtitles downloads a stream's bundled soft-subtitle
+// tracks (HiAnime) into the local track store — best-effort, English
+// first, at most 4 — so they behave like any other saved track:
+// selectable in the player and translatable via GTX. Tracks already
+// imported for the episode are not fetched again.
+func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, episode int, stream *source.Stream) {
+	existing, err := s.db.SubtitleTracks(a.ID, episode)
+	if err != nil {
+		return
+	}
+	have := map[string]bool{}
+	for _, t := range existing {
+		if t.Source == "hianime" {
+			have[t.Label] = true
+		}
+	}
+	tracks := append([]source.SubTrack{}, stream.Subtitles...)
+	sort.SliceStable(tracks, func(i, j int) bool {
+		return tracks[i].Lang == "en" && tracks[j].Lang != "en"
+	})
+	imported := 0
+	for _, tr := range tracks {
+		if imported >= 4 {
+			break
+		}
+		label := "HiAnime · " + tr.Label
+		if have[label] {
+			continue
+		}
+		dlCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+		req, err := http.NewRequestWithContext(dlCtx, http.MethodGet, tr.URL, nil)
+		if err != nil {
+			cancel()
+			continue
+		}
+		req.Header.Set("User-Agent", "NaniPlay/"+Version)
+		if stream.Referer != "" {
+			req.Header.Set("Referer", stream.Referer)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			cancel()
+			continue
+		}
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+		resp.Body.Close()
+		cancel()
+		if err != nil || resp.StatusCode != http.StatusOK {
+			continue
+		}
+		text := string(raw)
+		if _, err := subtitle.Parse(text); err != nil {
+			continue
+		}
+		_ = s.db.SaveSubtitleTrack(store.SubtitleTrack{
+			ID: newTrackID(), AnilistID: a.ID, Episode: episode,
+			Label: label, Lang: tr.Lang, Source: "hianime", Content: text,
+		})
+		imported++
+	}
+}
 
 func newTrackID() string {
 	var b [8]byte

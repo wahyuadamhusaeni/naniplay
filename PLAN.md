@@ -42,12 +42,13 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 - [x] Koreksi desync manual (offset ±0,5s di pemutar); otomatis belum
 - [x] Pilihan track subtitle di pemutar + unggah file + ambil dari URL
 
-## Fase 3 — Sumber Kedua
+## Fase 3 — Sumber Kedua *(sebagian besar selesai di v0.5.0)*
 
-- [ ] Provider HiAnime (katalog besar; token/embed)
+- [x] Provider HiAnime (katalog besar; dekripsi payload Megaplay AES-256-CBC; softsub bawaan terimpor & bisa diterjemahkan GTX)
+- [ ] Server lama ZokoAnime untuk judul yang hanya punya server itu (blob XOR window.__P)
 - [ ] Provider AniChan (anichan.to — sumber kedua di ekosistem Tatap/Shisen; resolver HLS + subtitle bawaan)
-- [ ] Fallback otomatis antar sumber bila satu gagal
-- [ ] Indikator sumber di halaman detail
+- [x] Fallback otomatis antar sumber bila satu gagal (Otakudesu → HiAnime)
+- [x] Indikator sumber di halaman detail
 
 ## Fase 4 — AI Fansub & Pelengkap
 

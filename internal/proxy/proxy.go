@@ -66,14 +66,33 @@ func Handler() http.Handler {
 			io.WriteString(w, rewritten)
 			return
 		}
+		// Some source CDNs disguise MPEG-TS segments behind a fixed
+		// 252-byte junk prefix. Detect that exact shape (first byte is
+		// not the TS sync byte, but byte 252 is) and strip the prefix;
+		// anything else streams through untouched.
+		var body io.Reader = resp.Body
+		strip := 0
+		if r.Header.Get("Range") == "" && resp.StatusCode == http.StatusOK {
+			br := bufio.NewReader(resp.Body)
+			if head, err := br.Peek(253); err == nil && len(head) >= 253 && head[0] != 0x47 && head[252] == 0x47 {
+				strip = 252
+			}
+			body = br
+		}
 		for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"} {
+			if strip > 0 && h == "Content-Length" {
+				continue // length changes after stripping
+			}
 			if v := resp.Header.Get(h); v != "" {
 				w.Header().Set(h, v)
 			}
 		}
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if strip > 0 {
+			io.CopyN(io.Discard, body, int64(strip))
+		}
+		io.Copy(w, body)
 	})
 }
 

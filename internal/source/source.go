@@ -11,6 +11,14 @@ type Series struct {
 	Title  string `json:"title"`
 	Poster string `json:"poster"`
 	URL    string `json:"url"`
+	Source string `json:"source"` // display name of the provider, e.g. "HiAnime"
+}
+
+// SubTrack is one soft-subtitle file bundled with a stream.
+type SubTrack struct {
+	Label string `json:"label"` // e.g. "English"
+	Lang  string `json:"lang"`  // ISO code when known, e.g. "en"
+	URL   string `json:"url"`   // direct subtitle file URL (usually WebVTT)
 }
 
 // Episode is one playable episode of a series.
@@ -22,10 +30,11 @@ type Episode struct {
 
 // Stream is a resolved, playable stream for an episode.
 type Stream struct {
-	MasterURL string `json:"masterUrl"` // HLS master playlist
-	Referer   string `json:"referer"`   // Referer the CDN expects
-	Server    string `json:"server"`    // human label, e.g. "Otakudesu (Sub Indo)"
-	SubLang   string `json:"subLang"`   // subtitle note, e.g. "Indonesian (Hardsub)"
+	MasterURL string     `json:"masterUrl"` // HLS master playlist
+	Referer   string     `json:"referer"`   // Referer the CDN expects
+	Server    string     `json:"server"`    // human label, e.g. "Otakudesu (Sub Indo)"
+	SubLang   string     `json:"subLang"`   // subtitle note, e.g. "Indonesian (Hardsub)"
+	Subtitles []SubTrack `json:"subtitles,omitempty"`
 }
 
 // Provider is the contract every streaming source implements.

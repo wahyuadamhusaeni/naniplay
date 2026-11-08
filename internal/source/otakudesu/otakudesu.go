@@ -112,7 +112,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]source.
 		if sm := slugRe.FindStringSubmatch(href); sm != nil {
 			slug = sm[1]
 		}
-		out = append(out, source.Series{ID: slug, Title: title, Poster: poster, URL: href})
+		out = append(out, source.Series{ID: slug, Title: title, Poster: poster, URL: href, Source: "Otakudesu"})
 		if limit > 0 && len(out) >= limit {
 			break
 		}
