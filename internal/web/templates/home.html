@@ -58,6 +58,27 @@
 </section>
 {{end}}
 
+{{if .Latest}}
+<section class="rail">
+  <div class="rail-head"><h2>🆕 Episode Terbaru</h2><a class="rail-more" href="/jadwal">Jadwal Rilis ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
+    {{range .Latest}}
+    <a class="card" href="/watch/{{.Anime.ID}}/{{.Episode}}">
+      <div class="card-img"><img loading="lazy" src="{{.Anime.Cover}}" alt="{{.Anime.Display}}">
+        <span class="card-badge">Ep {{.Episode}}</span>
+      </div>
+      <p class="card-title">{{.Anime.Display}}</p>
+      <p class="card-meta">{{.When}}</p>
+    </a>
+    {{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
+  </div>
+</section>
+{{end}}
+
 {{if .Trending}}
 <section class="rail">
   <div class="rail-head"><h2>Sedang Trending</h2></div>

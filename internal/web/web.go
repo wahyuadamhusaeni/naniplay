@@ -243,7 +243,30 @@ type homeData struct {
 	CinemaSeri    []cinemaCard
 	Personal      []anilist.Anime
 	PersonalGenre string
+	Latest        []latestView
 	Err           string
+}
+
+// latestView is one card in the home "Episode Terbaru" rail.
+type latestView struct {
+	Anime   anilist.Anime
+	Episode int
+	When    string
+}
+
+// relTime renders a short Indonesian relative time ("3 jam lalu").
+func relTime(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < 5*time.Minute:
+		return "baru saja"
+	case d < time.Hour:
+		return strconv.Itoa(int(d.Minutes())) + " mnt lalu"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d.Hours())) + " jam lalu"
+	default:
+		return strconv.Itoa(int(d.Hours()/24)) + " hari lalu"
+	}
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +313,19 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 			data.CinemaSeri = seriesCards(items)
 			if len(items) > 0 {
 				topSeries = &items[0]
+			}
+		}
+	}
+	if eps, err := s.anilist.LatestEpisodes(ctx); err == nil {
+		seenEp := map[int]bool{}
+		for _, e := range eps {
+			if e.Episode < 1 || seenEp[e.Anime.ID] {
+				continue
+			}
+			seenEp[e.Anime.ID] = true
+			data.Latest = append(data.Latest, latestView{Anime: e.Anime, Episode: e.Episode, When: relTime(e.AiringAt)})
+			if len(data.Latest) >= 12 {
+				break
 			}
 		}
 	}

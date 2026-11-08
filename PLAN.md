@@ -152,6 +152,13 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
       hero mobile ramping *(v1.3.0)*
 - [x] Soft-404 diperbaiki (status 404 asli) *(v1.3.0)*
 
+## Fase 8 — Panel subtitle & beranda hidup (2026-11-08)
+
+- [x] Panel subtitle: daftar trek baris, aksi per trek, alat
+      lanjutan terlipat penuh *(v1.4.0–v1.4.1)*
+- [x] Klik area video = tampil/sembunyi kontrol saja *(v1.4.2)*
+- [x] Rail Episode Terbaru di beranda *(v1.5.0)*
+
 ## Di luar rencana (keputusan 2026-11-08)
 
 - Mode TV dan aplikasi Android — tidak dikerjakan kecuali pemilik

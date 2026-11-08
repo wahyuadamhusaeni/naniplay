@@ -343,6 +343,37 @@ func (c *Client) AiringSchedule(ctx context.Context, from, to time.Time) ([]Sche
 	return out, nil
 }
 
+// LatestEpisodes returns recently aired episodes, newest first
+// (one page of the 50 latest airings in the past 72 hours; the
+// caller dedupes per anime). Cached for ten minutes.
+func (c *Client) LatestEpisodes(ctx context.Context) ([]ScheduleEntry, error) {
+	now := time.Now()
+	gql := `query ($from: Int, $to: Int) {
+		Page(page: 1, perPage: 50) {
+			airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, sort: TIME_DESC) {
+				airingAt
+				episode
+				media { ` + mediaFields + ` }
+			}
+		}
+	}`
+	r, err := c.query(ctx, "latest-eps", gql, map[string]any{
+		"from": int(now.Add(-72 * time.Hour).Unix()), "to": int(now.Unix()),
+	}, 10*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	out := []ScheduleEntry{}
+	for _, e := range r.Data.Page.AiringSchedules {
+		out = append(out, ScheduleEntry{
+			AiringAt: time.Unix(e.AiringAt, 0),
+			Episode:  e.Episode,
+			Anime:    e.Media.toAnime(),
+		})
+	}
+	return out, nil
+}
+
 // Relation is an anime related to another (sequel, prequel, side story...).
 type Relation struct {
 	Type  string // AniList relationType, e.g. SEQUEL, PREQUEL
