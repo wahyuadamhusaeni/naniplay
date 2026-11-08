@@ -45,12 +45,14 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 ## Fase 3 — Sumber Kedua
 
 - [ ] Provider HiAnime (katalog besar; token/embed)
+- [ ] Provider AniChan (anichan.to — sumber kedua di ekosistem Tatap/Shisen; resolver HLS + subtitle bawaan)
 - [ ] Fallback otomatis antar sumber bila satu gagal
 - [ ] Indikator sumber di halaman detail
 
 ## Fase 4 — AI Fansub & Pelengkap
 
-- [ ] AI fansub BYOK via endpoint OpenAI-compatible apa pun (Gemini/Groq/OpenAI/Ollama/9router sendiri)
+- [x] Terjemahan mesin Google GTX tanpa kunci (Inggris → Indonesia, tersimpan luring) *(v0.4.0)*
+- [ ] AI fansub BYOK via endpoint OpenAI-compatible apa pun (Gemini/Groq/OpenAI/Ollama/9router sendiri) — tingkat di atas GTX: hybrid LLM mengisi baris yang gagal diterjemahkan mesin
 - [x] AniSkip: deteksi & lewati opening/ending *(selesai lebih awal, di v0.2.0)*
 - [x] Jadwal rilis mingguan (AniList airing schedule) *(selesai lebih awal, di v0.2.0)*
 - [ ] Jelajah genre & filter katalog

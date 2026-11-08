@@ -119,6 +119,7 @@
   var subResults = document.getElementById("subResults");
   var subOffsetVal = document.getElementById("subOffsetVal");
   var subDelete = document.getElementById("subDelete");
+  var subTranslate = document.getElementById("subTranslate");
   var subBase = "/api/subtitles/" + meta.anilistId + "/" + meta.episode;
   var subOffset = 0;
   var subActiveId = "";
@@ -135,6 +136,7 @@
     for (var i = 0; i < old.length; i++) old[i].remove();
     for (var j = 0; j < video.textTracks.length; j++) video.textTracks[j].mode = "hidden";
     if (subDelete) subDelete.hidden = !subActiveId;
+    if (subTranslate) subTranslate.hidden = !subActiveId;
     if (!subActiveId) return;
     var tr = document.createElement("track");
     tr.kind = "subtitles";
@@ -199,6 +201,27 @@
       subOffset = Math.min(120, Math.round((subOffset + 0.5) * 10) / 10);
       subFmtOffset();
       if (subActiveId) activateSub(subActiveId);
+    });
+    subTranslate.addEventListener("click", function () {
+      if (!subActiveId) return;
+      subTranslate.disabled = true;
+      subSay("Menerjemahkan dengan Google GTX… episode penuh bisa 1–2 menit. Jangan tutup halaman ini.");
+      fetch("/api/subtitles/track/" + subActiveId + "/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (resp) {
+          subTranslate.disabled = false;
+          if (resp.error) { subSay("Gagal: " + resp.error); return; }
+          subSay("Terjemahan Indonesia (mesin) tersimpan & aktif. Kualitasnya literal — anggap draf dari fansub kilat.");
+          activateById(resp.id);
+        })
+        .catch(function () {
+          subTranslate.disabled = false;
+          subSay("Terjemahan gagal — coba lagi sebentar.");
+        });
     });
     subDelete.addEventListener("click", function () {
       if (!subActiveId) return;

@@ -102,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/external", s.apiSubtitleExternal)
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/upload", s.apiSubtitleUpload)
 	mux.HandleFunc("GET /api/subtitles/track/{trackID}", s.apiSubtitleTrack)
+	mux.HandleFunc("POST /api/subtitles/track/{trackID}/translate", s.apiSubtitleTranslate)
 	mux.HandleFunc("DELETE /api/subtitles/track/{trackID}", s.apiSubtitleDelete)
 	mux.HandleFunc("GET /api/health", s.apiHealth)
 	mux.HandleFunc("GET /api/version", s.apiVersion)

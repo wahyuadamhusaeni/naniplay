@@ -254,6 +254,46 @@ func (s *Server) apiSubtitleTrack(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, subtitle.ToVTT(cues, offset))
 }
 
+// apiSubtitleTranslate machine-translates a saved track into
+// Indonesian via the zero-key Google GTX endpoint and saves the
+// result as a new track, leaving the original untouched.
+func (s *Server) apiSubtitleTranslate(w http.ResponseWriter, r *http.Request) {
+	track, err := s.db.SubtitleTrack(r.PathValue("trackID"))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	if track == nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "track tidak ditemukan"})
+		return
+	}
+	cues, err := subtitle.Parse(track.Content)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error()})
+		return
+	}
+	if track.Source == "opensubtitles" {
+		cues = subtitle.StripAds(cues)
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 150*time.Second)
+	defer cancel()
+	translated, err := subtitle.TranslateCues(ctx, cues, "auto", "id")
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "Terjemahan gagal: " + err.Error()})
+		return
+	}
+	nt := store.SubtitleTrack{
+		ID: newTrackID(), AnilistID: track.AnilistID, Episode: track.Episode,
+		Label: track.Label + " — Indonesia (GTX)", Lang: "id", Source: "gtx",
+		Content: subtitle.ToVTT(translated, 0),
+	}
+	if err := s.db.SaveSubtitleTrack(nt); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": nt.ID, "label": nt.Label, "lang": nt.Lang, "source": nt.Source})
+}
+
 // apiSubtitleDelete removes a saved track.
 func (s *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.DeleteSubtitleTrack(r.PathValue("trackID")); err != nil {

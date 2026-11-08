@@ -4,6 +4,22 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.4.0] - 2026-11-08
+
+### Ditambahkan
+- **Terjemahan subtitle otomatis ke Indonesia (Google GTX)** — tombol
+  "Terjemahkan ke Indonesia" pada track subtitle aktif menerjemahkan
+  seluruh episode lewat endpoint publik Google Translate, tanpa API
+  key dan tanpa akun. Hasilnya disimpan sebagai track baru
+  ("… — Indonesia (GTX)") sehingga tetap tersedia secara luring;
+  track asli tidak diubah. Kontraksi bahasa Inggris lisan diperluas
+  dulu agar hasil mesin tidak kaku, dan timing tidak berubah sama
+  sekali. Terverifikasi: 304 cue Naruto episode 1 selesai dalam
+  ±11 detik.
+  - Ini penyelamat untuk anime lama/ langka yang subtitle
+    Indonesianya tidak pernah diterbitkan: ambil subtitle Inggrisnya,
+    terjemahkan, tonton.
+
 ## [0.3.0] - 2026-11-08
 
 ### Ditambahkan
@@ -63,6 +79,7 @@ versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 - Satu binary Go untuk Web (self-hosted) dan Windows (portable, membuka browser).
 - Workflow rilis GitHub Actions: zip Windows + tarball Linux per tag versi.
 
+[0.4.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.4.0
 [0.3.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.3.0
 [0.2.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.2.0
 [0.1.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.1.0
