@@ -4,6 +4,14 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.8.2] — 2026-11-08
+
+### Diperbaiki
+- Kunci versi aset diganti menjadi `?v=802`: percobaan deploy 0.8.1
+  sempat mengambil unduhan rilis yang rusak dan URL `?v=801` terlanjur
+  terisi konten lama di cache edge sebelum deploy berhasil. Tidak ada
+  perubahan fungsi dari 0.8.1 selain kunci cache baru ini.
+
 ## [0.8.1] — 2026-11-08
 
 ### Diperbaiki
