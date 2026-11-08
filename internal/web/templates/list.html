@@ -1,0 +1,30 @@
+{{define "title"}}{{.Title}} — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">{{.Title}}</h2>
+  {{if .Favorites}}
+  <div class="grid">
+    {{range .Favorites}}
+    <a class="card" href="/anime/{{.AnilistID}}">
+      <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}"></div>
+      <p class="card-title">{{.Title}}</p>
+    </a>
+    {{end}}
+  </div>
+  {{end}}
+  {{if .History}}
+  <div class="grid">
+    {{range .History}}
+    <a class="card card-wide" href="/watch/{{.AnilistID}}/{{.Episode}}">
+      <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}">
+        <span class="card-badge">Ep {{.Episode}}</span>
+      </div>
+      <div class="progress"><i style="width:{{pct .Progress}}%"></i></div>
+      <p class="card-title">{{.Title}}</p>
+    </a>
+    {{end}}
+  </div>
+  {{end}}
+  {{if and (not .Favorites) (not .History)}}<p class="dim">Masih kosong. Mulai menonton dan daftar ini akan terisi otomatis.</p>{{end}}
+</section>
+{{end}}
