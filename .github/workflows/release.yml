@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+      - name: Build Linux
+        run: |
+          CGO_ENABLED=0 go build -ldflags "-s -w" -o naniplay ./cmd/naniplay
+          tar -czf naniplay-linux-amd64.tar.gz naniplay README.md LICENSE
+      - name: Build Windows
+        run: |
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o naniplay.exe ./cmd/naniplay
+          zip naniplay-windows.zip naniplay.exe README.md LICENSE
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            naniplay-linux-amd64.tar.gz
+            naniplay-windows.zip

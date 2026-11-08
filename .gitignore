@@ -1,1 +1,7 @@
-.gitignore probe
+/dist/
+/data/
+*.db
+*.db-wal
+*.db-shm
+naniplay
+naniplay.exe
