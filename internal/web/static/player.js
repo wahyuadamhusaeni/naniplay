@@ -291,8 +291,8 @@
       panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
       panel.classList.add("flash");
       setTimeout(function () { panel.classList.remove("flash"); }, 1200);
-      var sel = document.getElementById("subSelect");
-      if (sel) sel.focus({ preventScroll: true });
+      var first = document.querySelector("#subTrackList .sub-track");
+      if (first) first.focus({ preventScroll: true });
     });
     if (pPiP) pPiP.addEventListener("click", function () {
       if (document.pictureInPictureElement) document.exitPictureInPicture();
@@ -395,8 +395,10 @@
     if (pick >= 0) hls.nextLevel = pick;
   }
 
-  // --- Subtitle: saved tracks, online search, upload, desync offset ---
-  var subSelect = document.getElementById("subSelect");
+  // --- Subtitle: daftar trek sebagai baris yang bisa diklik, zona
+  // ambil subtitle, dan alat lanjutan (gabung/sinkron) terlipat ---
+  var subTrackList = document.getElementById("subTrackList");
+  var subActiveNote = document.getElementById("subActiveNote");
   var subStatus = document.getElementById("subStatus");
   var subResults = document.getElementById("subResults");
   var subOffsetVal = document.getElementById("subOffsetVal");
@@ -406,31 +408,40 @@
   var subBase = video.dataset.subbase || ("/api/subtitles/" + meta.anilistId + "/" + meta.episode);
   var subPref = video.dataset.subpref || "id";
   var subManual = false;
+  var subOffset = 0;
+  var subActiveId = "";
+
   function subBucket(lang, label) {
     var t = ((lang || "") + " " + (label || "")).toLowerCase();
     if (t.indexOf("indones") >= 0 || t.indexOf("[id]") >= 0 || t.indexOf("indonesia") >= 0) return "id";
     if (t.indexOf("english") >= 0 || t.indexOf("[en]") >= 0) return "en";
     return "";
   }
-  function applySubPref() {
-    if (subManual || subActiveId || subPref === "off") return;
-    for (var i = 0; i < subSelect.options.length; i++) {
-      var o = subSelect.options[i];
-      if (o.value && o.dataset.bucket === subPref) {
-        subSelect.value = o.value;
-        activateSub(o.value);
-        return;
-      }
-    }
-  }
-  var subOffset = 0;
-  var subActiveId = "";
-
   function subSay(msg) { if (subStatus) subStatus.textContent = msg || ""; }
   function subFmtOffset() {
     var v = subOffset.toFixed(1).replace(".", ",") + "s";
     if (subOffset > 0) v = "+" + v;
-    subOffsetVal.textContent = v;
+    if (subOffsetVal) subOffsetVal.textContent = v;
+  }
+  function markActiveTrack() {
+    if (!subTrackList) return;
+    var name = "Tanpa subtitle";
+    subTrackList.querySelectorAll(".sub-track").forEach(function (row) {
+      var on = (row.dataset.id || "") === subActiveId;
+      row.classList.toggle("active", on);
+      if (on && row.dataset.name) name = row.dataset.name;
+    });
+    if (subActiveNote) subActiveNote.textContent = name;
+  }
+  function applySubPref() {
+    if (subManual || subActiveId || subPref === "off" || !subTrackList) return;
+    var rows = subTrackList.querySelectorAll(".sub-track");
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].dataset.id && rows[i].dataset.bucket === subPref) {
+        activateSub(rows[i].dataset.id);
+        return;
+      }
+    }
   }
   function activateSub(id) {
     subActiveId = id || "";
@@ -440,6 +451,7 @@
     if (subDelete) subDelete.hidden = !subActiveId;
     if (subTranslate) subTranslate.hidden = !subActiveId;
     if (subTranslateAI) subTranslateAI.hidden = !subActiveId;
+    markActiveTrack();
     if (!subActiveId) return;
     var tr = document.createElement("track");
     tr.kind = "subtitles";
@@ -461,28 +473,56 @@
       if (tries > 25) clearInterval(iv);
     }, 100);
   }
+  function trackRow(id, name, lang, source, bucket) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "sub-track";
+    b.dataset.id = id || "";
+    b.dataset.name = name || "";
+    b.dataset.bucket = bucket || "";
+    if (lang) {
+      var chip = document.createElement("span");
+      chip.className = "sub-lang";
+      chip.textContent = lang.toUpperCase();
+      b.appendChild(chip);
+    }
+    var label = document.createElement("span");
+    label.className = "sub-track-name";
+    label.textContent = name;
+    b.appendChild(label);
+    if (source) {
+      var src = document.createElement("span");
+      src.className = "sub-src";
+      src.textContent = source;
+      b.appendChild(src);
+    }
+    var check = document.createElement("span");
+    check.className = "sub-check";
+    check.textContent = "✓";
+    b.appendChild(check);
+    return b;
+  }
   function renderSaved(saved) {
-    var current = subSelect.value;
-    subSelect.innerHTML = '<option value="">Tanpa subtitle</option>';
+    if (subTrackList) {
+      subTrackList.innerHTML = "";
+      subTrackList.appendChild(trackRow("", "Tanpa subtitle", "", "", "off"));
+      (saved || []).forEach(function (t) {
+        subTrackList.appendChild(trackRow(t.id, t.label, t.lang, t.source, subBucket(t.lang, t.label)));
+      });
+    }
     var mergeSel = document.getElementById("subMergeSel");
     var mergeCur = mergeSel ? mergeSel.value : "";
-    if (mergeSel) mergeSel.innerHTML = '<option value="">Trek kedua / referensi…</option>';
-    (saved || []).forEach(function (t) {
-      var label = t.label + (t.lang ? " [" + t.lang.toUpperCase() + "]" : "") + " · " + t.source;
-      var o = document.createElement("option");
-      o.value = t.id;
-      o.textContent = label;
-      o.dataset.bucket = subBucket(t.lang, t.label);
-      subSelect.appendChild(o);
-      if (mergeSel) {
+    if (mergeSel) {
+      mergeSel.innerHTML = '<option value="">Trek kedua / referensi…</option>';
+      (saved || []).forEach(function (t) {
         var o2 = document.createElement("option");
         o2.value = t.id;
-        o2.textContent = label;
+        o2.textContent = t.label + (t.lang ? " [" + t.lang.toUpperCase() + "]" : "") + " · " + t.source;
         mergeSel.appendChild(o2);
-      }
-    });
-    if (current) subSelect.value = current;
-    if (mergeSel && mergeCur) mergeSel.value = mergeCur;
+      });
+      if (mergeCur) mergeSel.value = mergeCur;
+    }
+    markActiveTrack();
   }
   function loadSubtitles() {
     return fetch(subBase)
@@ -491,22 +531,19 @@
       .catch(function () { return null; });
   }
   function activateById(id) {
-    loadSubtitles().then(function () {
-      subSelect.value = id;
-      activateSub(id);
-    });
+    loadSubtitles().then(function () { activateSub(id); });
   }
-  if (subSelect) {
+  if (subTrackList) {
     loadSubtitles().then(function (data) {
-      if (data && data.saved && data.saved.length) {
-        subSelect.value = data.saved[0].id;
+      if (!subActiveId && data && data.saved && data.saved.length) {
         activateSub(data.saved[0].id);
       }
     });
-    subSelect.addEventListener("change", function () {
+    subTrackList.addEventListener("click", function (e) {
+      var row = e.target.closest(".sub-track");
+      if (!row) return;
       subManual = true;
-      var sel = subSelect.options[subSelect.selectedIndex];
-      var bucket = subSelect.value ? (sel ? sel.dataset.bucket || "" : "") : "off";
+      var bucket = row.dataset.id ? (row.dataset.bucket || "") : "off";
       if (bucket) {
         fetch("/api/prefs/sub-lang", {
           method: "POST",
@@ -514,15 +551,17 @@
           body: JSON.stringify({ lang: bucket })
         }).catch(function () {});
       }
-      activateSub(subSelect.value);
-      subSay(subSelect.value ? "Subtitle aktif. Bila timing meleset, geser dengan tombol −0,5s/+0,5s." : "");
+      activateSub(row.dataset.id);
+      subSay(row.dataset.id ? "Subtitle aktif: " + (row.dataset.name || "") + ". Bila timing meleset, geser di bagian trek aktif." : "Subtitle dimatikan.");
     });
-    document.getElementById("subMinus").addEventListener("click", function () {
+    var subMinus = document.getElementById("subMinus");
+    var subPlus = document.getElementById("subPlus");
+    if (subMinus) subMinus.addEventListener("click", function () {
       subOffset = Math.max(-120, Math.round((subOffset - 0.5) * 10) / 10);
       subFmtOffset();
       if (subActiveId) activateSub(subActiveId);
     });
-    document.getElementById("subPlus").addEventListener("click", function () {
+    if (subPlus) subPlus.addEventListener("click", function () {
       subOffset = Math.min(120, Math.round((subOffset + 0.5) * 10) / 10);
       subFmtOffset();
       if (subActiveId) activateSub(subActiveId);
@@ -531,8 +570,8 @@
     var subSyncBtn = document.getElementById("subSyncBtn");
     var subMergeSel = document.getElementById("subMergeSel");
     if (subMergeBtn) subMergeBtn.addEventListener("click", function () {
-      var a = subSelect.value, b = subMergeSel ? subMergeSel.value : "";
-      if (!a || !b || a === b) { subSay("Pilih dulu trek aktif dan trek kedua yang berbeda."); return; }
+      var a = subActiveId, b = subMergeSel ? subMergeSel.value : "";
+      if (!a || !b || a === b) { subSay("Aktifkan dulu trek utama, lalu pilih trek kedua yang berbeda."); return; }
       subSay("Menggabungkan trek…");
       fetch("/api/subtitles/track/" + a + "/merge", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -543,8 +582,8 @@
       }).catch(function () { subSay("Gabung gagal: jaringan."); });
     });
     if (subSyncBtn) subSyncBtn.addEventListener("click", function () {
-      var a = subSelect.value, b = subMergeSel ? subMergeSel.value : "";
-      if (!a || !b || a === b) { subSay("Pilih dulu trek aktif dan trek referensi yang berbeda."); return; }
+      var a = subActiveId, b = subMergeSel ? subMergeSel.value : "";
+      if (!a || !b || a === b) { subSay("Aktifkan dulu trek utama, lalu pilih trek referensi yang berbeda."); return; }
       subSay("Menghitung selisih timing…");
       fetch("/api/subtitles/track/" + a + "/autosync", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -555,7 +594,7 @@
         else subSay(d.error || "Sinkron gagal.");
       }).catch(function () { subSay("Sinkron gagal: jaringan."); });
     });
-    subTranslateAI.addEventListener("click", function () {
+    if (subTranslateAI) subTranslateAI.addEventListener("click", function () {
       if (!subActiveId) return;
       subTranslateAI.disabled = true;
       subSay("Fansub AI sedang menerjemahkan… episode penuh bisa beberapa menit. Jangan tutup halaman ini.");
@@ -576,7 +615,7 @@
           subSay("Gagal menghubungi server untuk fansub AI.");
         });
     });
-    subTranslate.addEventListener("click", function () {
+    if (subTranslate) subTranslate.addEventListener("click", function () {
       if (!subActiveId) return;
       subTranslate.disabled = true;
       subSay("Menerjemahkan dengan Google GTX… episode penuh bisa 1–2 menit. Jangan tutup halaman ini.");
@@ -597,16 +636,16 @@
           subSay("Terjemahan gagal — coba lagi sebentar.");
         });
     });
-    subDelete.addEventListener("click", function () {
+    if (subDelete) subDelete.addEventListener("click", function () {
       if (!subActiveId) return;
       fetch("/api/subtitles/track/" + subActiveId, { method: "DELETE" }).then(function () {
         activateSub("");
-        subSelect.value = "";
         loadSubtitles();
         subSay("Track subtitle dihapus.");
       });
     });
-    document.getElementById("subSearch").addEventListener("click", function () {
+    var subSearch = document.getElementById("subSearch");
+    if (subSearch) subSearch.addEventListener("click", function () {
       subSay("Mencari subtitle online (" + (video.dataset.subsource || "OpenSubtitles") + ")… bisa 10–30 detik.");
       subResults.innerHTML = "";
       fetch(subBase + "?q=online")
@@ -623,7 +662,20 @@
             var b = document.createElement("button");
             b.type = "button";
             b.className = "sub-result";
-            b.textContent = "[" + (c.lang || "?").toUpperCase() + "] " + c.label;
+            var chip = document.createElement("span");
+            chip.className = "sub-lang";
+            chip.textContent = (c.lang || "?").toUpperCase();
+            b.appendChild(chip);
+            var label = document.createElement("span");
+            label.className = "sub-track-name";
+            label.textContent = c.label;
+            b.appendChild(label);
+            if (c.downloads) {
+              var dl = document.createElement("span");
+              dl.className = "sub-src";
+              dl.textContent = "⬇ " + c.downloads;
+              b.appendChild(dl);
+            }
             b.addEventListener("click", function () {
               b.disabled = true;
               subSay("Mengunduh subtitle…");
@@ -646,7 +698,8 @@
         })
         .catch(function () { subSay("Pencarian online gagal."); });
     });
-    document.getElementById("subFile").addEventListener("change", function (e) {
+    var subFile = document.getElementById("subFile");
+    if (subFile) subFile.addEventListener("change", function (e) {
       var f = e.target.files && e.target.files[0];
       if (!f) return;
       var fd = new FormData();
@@ -662,7 +715,8 @@
         .catch(function () { subSay("Unggahan gagal."); });
       e.target.value = "";
     });
-    document.getElementById("subUrlBtn").addEventListener("click", function () {
+    var subUrlBtn = document.getElementById("subUrlBtn");
+    if (subUrlBtn) subUrlBtn.addEventListener("click", function () {
       var input = document.getElementById("subUrl");
       var url = (input.value || "").trim();
       if (!url) return;

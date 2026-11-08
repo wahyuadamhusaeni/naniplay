@@ -82,31 +82,43 @@
   <div class="player-meta dim">{{.Stream.Server}} · {{.Stream.SubLang}}</div>
 
   <section class="sub-panel" id="subPanel">
-    <div class="sub-row">
+    <div class="sub-head">
       <strong class="sub-label">Subtitle</strong>
-      <select id="subSelect"><option value="">Tanpa subtitle</option></select>
+      <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
+    </div>
+    <div class="sub-tracks" id="subTrackList"></div>
+    <div class="sub-actions" id="subActions">
       <button type="button" id="subTranslate" class="btn btn-ghost" hidden>🌐 Terjemahkan ke Indonesia</button>
       <button type="button" id="subTranslateAI" class="btn btn-ghost" hidden>🤖 Fansub AI</button>
-      <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus</button>
       <span class="sub-offset" title="Geser timing subtitle bila tidak sinkron">
+        <span class="sub-offset-label">Geser timing</span>
         <button type="button" id="subMinus">−0,5s</button>
         <span id="subOffsetVal">0,0s</span>
         <button type="button" id="subPlus">+0,5s</button>
       </span>
+      <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus Trek</button>
     </div>
-    <div class="sub-row">
-      <button type="button" id="subSearch" class="btn btn-ghost">🔍 Cari Subtitle Online</button>
-      <label class="btn btn-ghost sub-upload-label">⬆ Unggah File<input type="file" id="subFile" accept=".srt,.vtt,.ass,.ssa" hidden></label>
-      <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
-      <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
-    </div>
-    <div class="sub-row">
-      <select id="subMergeSel"><option value="">Trek kedua / referensi…</option></select>
-      <button type="button" id="subMergeBtn" class="btn btn-ghost">⿻ Gabung ke Trek Aktif</button>
-      <button type="button" id="subSyncBtn" class="btn btn-ghost">🎯 Sinkronkan ke Referensi</button>
+    <div class="sub-get">
+      <button type="button" id="subSearch" class="btn btn-play sub-search-btn">🔍 Cari Subtitle Online</button>
+      <div class="sub-get-row">
+        <label class="btn btn-ghost sub-upload-label">⬆ Unggah File<input type="file" id="subFile" accept=".srt,.vtt,.ass,.ssa" hidden></label>
+        <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
+        <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
+      </div>
     </div>
     <div id="subResults" class="sub-results"></div>
-    <p class="dim small" id="subStatus"></p>
+    <p class="sub-status" id="subStatus"></p>
+    <details class="sub-tools">
+      <summary>Alat lanjutan — gabung trek &amp; sinkronkan timing</summary>
+      <div class="sub-tools-body">
+        <div class="sub-row">
+          <select id="subMergeSel"><option value="">Trek kedua / referensi…</option></select>
+          <button type="button" id="subMergeBtn" class="btn btn-ghost">⿻ Gabung ke Trek Aktif</button>
+          <button type="button" id="subSyncBtn" class="btn btn-ghost">🎯 Sinkronkan ke Referensi</button>
+        </div>
+        <p class="dim small">Gabung: satukan dua trek (mis. Inggris + Indonesia) menjadi satu trek dwibahasa. Sinkronkan: geser otomatis timing trek aktif mengikuti trek referensi.</p>
+      </div>
+    </details>
   </section>
   <div class="watch-actions">
     {{if .PrevEp}}<a class="btn btn-ghost" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">⏮ Episode {{.PrevEp}}</a>{{end}}
@@ -122,6 +134,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=13000"></script>
-<script src="/static/picker.js?v=13000"></script>
+<script src="/static/player.js?v=14000"></script>
+<script src="/static/picker.js?v=14000"></script>
 {{end}}
