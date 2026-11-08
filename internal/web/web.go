@@ -195,6 +195,16 @@ func (s *Server) render(w http.ResponseWriter, page string, data any) {
 	}
 }
 
+// renderNotFound renders the styled not-found page with a real
+// 404 status (previously these rendered with 200 — a soft 404).
+func (s *Server) renderNotFound(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	if err := s.tpl["notfound"].ExecuteTemplate(w, "base", s.base()); err != nil {
+		log.Printf("render notfound: %v", err)
+	}
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -213,27 +223,32 @@ type heroSlide struct {
 	Image  string
 	Href   string
 	Play   string
+	Key    string // media key, for the Daftar Saya toggle
+	Poster string
+	Fav    bool
 }
 
 type homeData struct {
 	baseData
-	Slides     []heroSlide
-	Hero       *anilist.Anime
-	Trending   []anilist.Anime
-	Season     []anilist.Anime
-	SeasonName string
-	Year       int
-	Top        []anilist.Anime
-	Continue   []histView
-	Favorites  []favView
-	CinemaFilm []cinemaCard
-	CinemaSeri []cinemaCard
-	Err        string
+	Slides        []heroSlide
+	Hero          *anilist.Anime
+	Trending      []anilist.Anime
+	Season        []anilist.Anime
+	SeasonName    string
+	Year          int
+	Top           []anilist.Anime
+	Continue      []histView
+	Favorites     []favView
+	CinemaFilm    []cinemaCard
+	CinemaSeri    []cinemaCard
+	Personal      []anilist.Anime
+	PersonalGenre string
+	Err           string
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	ctx := r.Context()
@@ -278,6 +293,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	data.PersonalGenre, data.Personal = s.personalPicks(ctx)
 	data.Slides = buildHeroSlides(data.Hero, topMovie, topSeries, func(slug string) string {
 		sd, err := s.idlix.SeriesDetail(ctx, slug)
 		if err == nil && sd != nil && sd.DefaultSeason != nil && len(sd.DefaultSeason.Episodes) > 0 {
@@ -286,7 +302,87 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		}
 		return "/series/" + slug
 	})
+	for i := range data.Slides {
+		if data.Slides[i].Key != "" {
+			data.Slides[i].Fav = s.db.IsFavorite(data.Slides[i].Key)
+		}
+	}
 	s.render(w, "home", data)
+}
+
+// personalPicks builds the "Pilihan {Genre} Untukmu" rail: the most
+// common genre across the user's favorite and in-progress anime,
+// filled with popular titles of that genre they have not touched.
+// Empty when there is no signal yet.
+func (s *Server) personalPicks(ctx context.Context) (string, []anilist.Anime) {
+	seen := map[int]bool{}
+	var ids []int
+	if favs, err := s.db.Favorites(); err == nil {
+		for _, f := range favs {
+			if id, ok := store.ParseAnimeKey(f.Key); ok && !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	if cw, err := s.db.ContinueWatching(12); err == nil {
+		for _, h := range cw {
+			if h.AnilistID > 0 && !seen[h.AnilistID] {
+				seen[h.AnilistID] = true
+				ids = append(ids, h.AnilistID)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return "", nil
+	}
+	if len(ids) > 6 {
+		ids = ids[:6]
+	}
+	counts := map[string]int{}
+	var order []string
+	for _, id := range ids {
+		a, err := s.anilist.Detail(ctx, id)
+		if err != nil || a == nil {
+			continue
+		}
+		for _, g := range a.Genres {
+			if g == "Hentai" {
+				continue
+			}
+			if counts[g] == 0 {
+				order = append(order, g)
+			}
+			counts[g]++
+		}
+	}
+	top, best := "", 0
+	for _, g := range order {
+		if counts[g] > best {
+			best, top = counts[g], g
+		}
+	}
+	if top == "" {
+		return "", nil
+	}
+	list, _, err := s.anilist.ByGenre(ctx, top, 1)
+	if err != nil {
+		return "", nil
+	}
+	out := []anilist.Anime{}
+	for _, a := range list {
+		if seen[a.ID] {
+			continue
+		}
+		out = append(out, a)
+		if len(out) >= 12 {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return "", nil
+	}
+	return top, out
 }
 
 func seasonLabel(s string) string {

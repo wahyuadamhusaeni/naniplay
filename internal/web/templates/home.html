@@ -15,6 +15,15 @@
     <div class="hero-actions">
       <a class="btn btn-play" href="{{$sl.Play}}">▶&nbsp; Putar</a>
       <a class="btn btn-ghost" href="{{$sl.Href}}">ⓘ&nbsp; Info Selengkapnya</a>
+      {{if $sl.Key}}
+      <form method="post" action="/favorites/toggle" class="inline-form">
+        <input type="hidden" name="media_key" value="{{$sl.Key}}">
+        <input type="hidden" name="title" value="{{$sl.Title}}">
+        <input type="hidden" name="poster" value="{{$sl.Poster}}">
+        <input type="hidden" name="return" value="/">
+        <button class="btn btn-ghost" type="submit">{{if $sl.Fav}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+      </form>
+      {{end}}
     </div>
   </div>
 </section>
@@ -29,8 +38,10 @@
 
 {{if .Continue}}
 <section class="rail">
-  <h2>Lanjutkan Menonton</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>Lanjutkan Menonton</h2><a class="rail-more" href="/riwayat">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .Continue}}
     <a class="card card-wide" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}">
@@ -41,65 +52,104 @@
       <p class="card-title">{{.Title}}</p>
     </a>
     {{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .Trending}}
 <section class="rail">
-  <h2>Sedang Trending</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>Sedang Trending</h2></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .Trending}}{{template "card" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .Season}}
 <section class="rail">
-  <h2>Populer {{.SeasonName}} {{.Year}}</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>Populer {{.SeasonName}} {{.Year}}</h2></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .Season}}{{template "card" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
+  </div>
+</section>
+{{end}}
+
+{{if .Personal}}
+<section class="rail">
+  <div class="rail-head"><h2>Pilihan {{.PersonalGenre}} Untukmu</h2><a class="rail-more" href="/genre/{{.PersonalGenre}}">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
+    {{range .Personal}}{{template "card" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .Favorites}}
 <section class="rail">
-  <h2>Daftar Saya</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>Daftar Saya</h2><a class="rail-more" href="/daftar-saya">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .Favorites}}
     <a class="card" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}"></div>
       <p class="card-title">{{.Title}}</p>
     </a>
     {{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .CinemaFilm}}
 <section class="rail">
-  <h2>🎬 Film Populer</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>🎬 Film Populer</h2><a class="rail-more" href="/film">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .CinemaFilm}}{{template "cinemacard" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .CinemaSeri}}
 <section class="rail">
-  <h2>📺 Series Populer</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>📺 Series Populer</h2><a class="rail-more" href="/series">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .CinemaSeri}}{{template "cinemacard" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}
 
 {{if .Top}}
 <section class="rail">
-  <h2>Rating Tertinggi Sepanjang Masa</h2>
-  <div class="rail-track">
+  <div class="rail-head"><h2>Rating Tertinggi Sepanjang Masa</h2></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
     {{range .Top}}{{template "card" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
   </div>
 </section>
 {{end}}

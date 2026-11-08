@@ -142,6 +142,16 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Subtitle online Film & Series via SubDL (kunci API pengguna,
       pencarian per IMDb ID + season/episode) *(v1.2.0)*
 
+## Fase 7 — Poles UX (audit menyeluruh 2026-11-08)
+
+- [x] Kontrol pemutar ala Netflix: ikon SVG, seek bar penuh dengan
+      scrub & tooltip, ±10 detik, kecepatan putar, spinner, judul
+      di bar *(v1.3.0)*
+- [x] Beranda: panah geser rail, Lihat Semua, Daftar Saya di hero,
+      Putar hero langsung memutar, rail personal per genre,
+      hero mobile ramping *(v1.3.0)*
+- [x] Soft-404 diperbaiki (status 404 asli) *(v1.3.0)*
+
 ## Di luar rencana (keputusan 2026-11-08)
 
 - Mode TV dan aplikasi Android — tidak dikerjakan kecuali pemilik

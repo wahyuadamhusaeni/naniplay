@@ -83,7 +83,7 @@
     }
     if (hit) {
       activeInterval = hit;
-      skipBtn.textContent = skipLabel(hit.type) + " ⏭";
+      skipBtn.textContent = skipLabel(hit.type);
       skipBtn.hidden = false;
     } else if (activeInterval) {
       activeInterval = null;
@@ -121,18 +121,33 @@
     if (next) window.location.href = next;
   });
 
-  // --- Control bar kustom: putar, seek, volume, kualitas, PiP ---
+  // --- Control bar ala Netflix: ikon SVG, seek bar penuh, +/-10 dtk,
+  // kecepatan putar, indikator buffering ---
   var box = document.getElementById("playerBox");
   var pPlay = document.getElementById("pPlay");
+  var pPlayIco = document.getElementById("pPlayIco");
   var pBigPlay = document.getElementById("pBigPlay");
   var pSeek = document.getElementById("pSeek");
+  var pPlayed = document.getElementById("pPlayed");
+  var pBuffered = document.getElementById("pBuffered");
+  var pKnob = document.getElementById("pKnob");
+  var pSeekTip = document.getElementById("pSeekTip");
   var pCur = document.getElementById("pCur");
   var pDur = document.getElementById("pDur");
+  var pBack10 = document.getElementById("pBack10");
+  var pFwd10 = document.getElementById("pFwd10");
   var pMute = document.getElementById("pMute");
+  var pVolIco = document.getElementById("pVolIco");
   var pVol = document.getElementById("pVol");
   var pCC = document.getElementById("pCC");
   var pPiP = document.getElementById("pPiP");
   var pFull = document.getElementById("pFull");
+  var pFullIco = document.getElementById("pFullIco");
+  var pSpinner = document.getElementById("pSpinner");
+  var pFlash = document.getElementById("pFlash");
+  var pFlashIco = document.getElementById("pFlashIco");
+  var pSpeedBtn = document.getElementById("pSpeedBtn");
+  var pSpeedMenu = document.getElementById("pSpeedMenu");
   var qWrap = document.getElementById("pQualityWrap");
   var qBtn = document.getElementById("pQualityBtn");
   var qMenu = document.getElementById("pQualityMenu");
@@ -147,12 +162,20 @@
     if (h > 0) return h + ":" + String(m % 60).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
     return m + ":" + String(sec).padStart(2, "0");
   }
+  function flash(icon) {
+    if (!pFlash || !pFlashIco) return;
+    pFlashIco.setAttribute("href", icon);
+    pFlash.classList.remove("go");
+    void pFlash.offsetWidth;
+    pFlash.classList.add("go");
+  }
   function togglePlay() {
-    if (video.paused) video.play(); else video.pause();
+    if (video.paused) { video.play(); flash("#i-play"); }
+    else { video.pause(); flash("#i-pause"); }
   }
   function syncPlayUI() {
     var playing = !video.paused && !video.ended;
-    if (pPlay) pPlay.textContent = playing ? "⏸" : "▶";
+    if (pPlayIco) pPlayIco.setAttribute("href", playing ? "#i-pause" : "#i-play");
     if (box) {
       box.classList.toggle("paused", !playing);
       box.classList.toggle("playing", playing);
@@ -165,54 +188,103 @@
     uiTimer = setTimeout(function () { box.classList.remove("ui-on"); }, 2600);
   }
   function paintSeek() {
-    if (!pSeek || !video.duration) return;
+    if (!video.duration) return;
     var played = (video.currentTime / video.duration) * 100;
     var buffered = 0;
     try {
       if (video.buffered.length) buffered = (video.buffered.end(video.buffered.length - 1) / video.duration) * 100;
     } catch (e) { /* abaikan */ }
-    pSeek.style.background = "linear-gradient(90deg, var(--red) " + played + "%, #8a8a8a " + played + "%, #8a8a8a " + buffered + "%, #4d4d4d " + buffered + "%)";
+    if (pPlayed) pPlayed.style.width = played + "%";
+    if (pBuffered) pBuffered.style.width = buffered + "%";
+    if (pKnob) pKnob.style.left = played + "%";
+    if (pSeek) pSeek.setAttribute("aria-valuenow", String(Math.round(played)));
   }
   function toggleFull() {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
     if (box && box.requestFullscreen) box.requestFullscreen().catch(function () {});
     else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
   }
+  function syncVolIcon() {
+    if (!pVolIco) return;
+    var name = video.muted || video.volume === 0 ? "#i-vol-off" : video.volume < 0.5 ? "#i-vol-low" : "#i-vol-high";
+    pVolIco.setAttribute("href", name);
+  }
+  function seekFraction(e) {
+    var rect = pSeek.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+  }
+  function moveTip(e) {
+    if (!pSeekTip || !video.duration) return;
+    var f = seekFraction(e);
+    pSeekTip.textContent = fmtT(f * video.duration);
+    pSeekTip.style.left = (f * 100) + "%";
+  }
   if (box && pPlay) {
-    video.addEventListener("play", function () { syncPlayUI(); pokeUI(); });
+    video.addEventListener("play", function () {
+      box.classList.add("started");
+      syncPlayUI(); pokeUI();
+    });
     video.addEventListener("pause", function () { syncPlayUI(); pokeUI(); });
     video.addEventListener("click", function () { togglePlay(); });
     video.addEventListener("dblclick", function () { toggleFull(); });
+    video.addEventListener("waiting", function () { if (pSpinner) pSpinner.hidden = false; });
+    video.addEventListener("playing", function () { if (pSpinner) pSpinner.hidden = true; });
+    video.addEventListener("canplay", function () { if (pSpinner) pSpinner.hidden = true; });
+    document.addEventListener("fullscreenchange", function () {
+      if (pFullIco) pFullIco.setAttribute("href", document.fullscreenElement ? "#i-full-exit" : "#i-full");
+    });
     box.addEventListener("mousemove", pokeUI);
     box.addEventListener("touchstart", pokeUI, { passive: true });
     pPlay.addEventListener("click", togglePlay);
     if (pBigPlay) pBigPlay.addEventListener("click", togglePlay);
-    pSeek.addEventListener("input", function () {
-      seeking = true;
-      if (video.duration) {
-        video.currentTime = (pSeek.value / 1000) * video.duration;
-        if (pCur) pCur.textContent = fmtT(video.currentTime);
-      }
+    if (pBack10) pBack10.addEventListener("click", function () {
+      video.currentTime = Math.max(0, video.currentTime - 10);
+      pokeUI();
     });
-    pSeek.addEventListener("change", function () { seeking = false; paintSeek(); });
-    video.addEventListener("timeupdate", function () {
-      if (!seeking && video.duration) {
-        pSeek.value = String(Math.round((video.currentTime / video.duration) * 1000));
+    if (pFwd10) pFwd10.addEventListener("click", function () {
+      if (video.duration) video.currentTime = Math.min(video.duration, video.currentTime + 10);
+      pokeUI();
+    });
+    if (pSeek) {
+      pSeek.addEventListener("pointerdown", function (e) {
+        seeking = true;
+        pSeek.classList.add("scrubbing");
+        if (pSeek.setPointerCapture) { try { pSeek.setPointerCapture(e.pointerId); } catch (err) {} }
+        if (video.duration) video.currentTime = seekFraction(e) * video.duration;
+        moveTip(e); paintSeek(); pokeUI();
+      });
+      pSeek.addEventListener("pointermove", function (e) {
+        moveTip(e);
+        if (seeking && video.duration) {
+          video.currentTime = seekFraction(e) * video.duration;
+          paintSeek();
+          if (pCur) pCur.textContent = fmtT(video.currentTime);
+        }
+      });
+      var endSeek = function () {
+        seeking = false;
+        pSeek.classList.remove("scrubbing");
         paintSeek();
-      }
+      };
+      pSeek.addEventListener("pointerup", endSeek);
+      pSeek.addEventListener("pointercancel", endSeek);
+    }
+    video.addEventListener("timeupdate", function () {
+      if (!seeking) paintSeek();
       if (pCur) pCur.textContent = fmtT(video.currentTime);
     });
     video.addEventListener("progress", paintSeek);
     video.addEventListener("durationchange", function () { if (pDur) pDur.textContent = fmtT(video.duration); });
-    pVol.addEventListener("input", function () {
+    if (pVol) pVol.addEventListener("input", function () {
       video.volume = pVol.value / 100;
       video.muted = false;
     });
-    pMute.addEventListener("click", function () { video.muted = !video.muted; });
+    if (pMute) pMute.addEventListener("click", function () { video.muted = !video.muted; });
     video.addEventListener("volumechange", function () {
-      pVol.value = String(Math.round(video.volume * 100));
-      pMute.textContent = video.muted || video.volume === 0 ? "🔇" : video.volume < 0.5 ? "🔉" : "🔊";
+      if (pVol) pVol.value = String(Math.round(video.volume * 100));
+      syncVolIcon();
     });
+    syncVolIcon();
     if (pCC) pCC.addEventListener("click", function () {
       var panel = document.getElementById("subPanel");
       if (!panel) return;
@@ -229,6 +301,29 @@
     if (pFull) pFull.addEventListener("click", toggleFull);
     syncPlayUI();
     pokeUI();
+    if (pSpinner) pSpinner.hidden = false;
+  }
+
+  // --- Kecepatan putar ---
+  if (pSpeedBtn && pSpeedMenu) {
+    [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].forEach(function (rate) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = (rate === 1 ? "1" : String(rate).replace(".", ",")) + "×";
+      if (rate === 1) b.classList.add("active");
+      b.addEventListener("click", function () {
+        video.playbackRate = rate;
+        pSpeedBtn.textContent = (rate === 1 ? "1" : String(rate)) + "×";
+        pSpeedMenu.querySelectorAll("button").forEach(function (x) { x.classList.remove("active"); });
+        b.classList.add("active");
+        pSpeedMenu.hidden = true;
+      });
+      pSpeedMenu.appendChild(b);
+    });
+    pSpeedBtn.addEventListener("click", function () { pSpeedMenu.hidden = !pSpeedMenu.hidden; });
+    document.addEventListener("click", function (e) {
+      if (!pSpeedMenu.hidden && !e.target.closest(".np-speedwrap")) pSpeedMenu.hidden = true;
+    });
   }
 
   // --- Kualitas (level HLS) ---

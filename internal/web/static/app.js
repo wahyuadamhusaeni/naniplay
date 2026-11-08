@@ -56,3 +56,27 @@
   slider.addEventListener("pointerleave", start);
   start();
 })();
+
+// Rail navigation: chevron buttons scroll the track (desktop hover;
+// touch devices keep swiping).
+(function () {
+  document.querySelectorAll(".rail-wrap").forEach(function (wrap) {
+    var track = wrap.querySelector(".rail-track");
+    var prev = wrap.querySelector(".rail-prev");
+    var next = wrap.querySelector(".rail-next");
+    if (!track) return;
+    function upd() {
+      if (prev) prev.disabled = track.scrollLeft <= 4;
+      if (next) next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+    }
+    if (prev) prev.addEventListener("click", function () {
+      track.scrollBy({ left: -track.clientWidth * 0.85, behavior: "smooth" });
+    });
+    if (next) next.addEventListener("click", function () {
+      track.scrollBy({ left: track.clientWidth * 0.85, behavior: "smooth" });
+    });
+    track.addEventListener("scroll", upd, { passive: true });
+    window.addEventListener("resize", upd);
+    upd();
+  });
+})();

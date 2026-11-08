@@ -252,7 +252,7 @@ func (s *Server) filmDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 	m, err := s.idlix.Movie(r.Context(), slug)
 	if err != nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	s.render(w, "moviedetail", movieDetailData{
@@ -280,7 +280,7 @@ func (s *Server) seriesDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 	sr, err := s.idlix.SeriesDetail(r.Context(), slug)
 	if err != nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	data := seriesDetailData{
@@ -361,7 +361,7 @@ func (s *Server) cinemaWatchMovie(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	mv, err := s.idlix.Movie(r.Context(), slug)
 	if err != nil || mv == nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	s.playCinema(w, r, "movie:"+slug, 1, mv.Title, "", mv.Poster(), "/film/"+slug, mv.Title, "movie", mv.ID, "", "")
@@ -376,12 +376,12 @@ func (s *Server) cinemaWatchSeries(w http.ResponseWriter, r *http.Request) {
 	season, err1 := strconv.Atoi(r.PathValue("season"))
 	epNum, err2 := strconv.Atoi(r.PathValue("episode"))
 	if err1 != nil || err2 != nil || season < 0 || epNum < 1 {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	resp, err := s.idlix.Episode(r.Context(), slug, season, epNum)
 	if err != nil || resp == nil || resp.Episode == nil || resp.Series == nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	next, prev := "", ""
@@ -438,7 +438,9 @@ func buildHeroSlides(hero *anilist.Anime, movie *idlix.MovieItem, series *idlix.
 			Desc:   hero.Description,
 			Image:  img,
 			Href:   "/anime/" + strconv.Itoa(hero.ID),
-			Play:   "/anime/" + strconv.Itoa(hero.ID),
+			Play:   "/watch/" + strconv.Itoa(hero.ID) + "/1",
+			Key:    "anime:" + strconv.Itoa(hero.ID),
+			Poster: hero.Cover,
 		})
 	}
 	if movie != nil {
@@ -463,6 +465,8 @@ func buildHeroSlides(hero *anilist.Anime, movie *idlix.MovieItem, series *idlix.
 			Image:  img,
 			Href:   "/film/" + movie.Slug,
 			Play:   "/film/" + movie.Slug + "/putar",
+			Key:    "movie:" + movie.Slug,
+			Poster: movie.Poster(),
 		})
 	}
 	if series != nil {
@@ -487,6 +491,8 @@ func buildHeroSlides(hero *anilist.Anime, movie *idlix.MovieItem, series *idlix.
 			Image:  img,
 			Href:   "/series/" + series.Slug,
 			Play:   seriesPlay(series.Slug),
+			Key:    "series:" + series.Slug,
+			Poster: series.Poster(),
 		})
 	}
 	return slides
