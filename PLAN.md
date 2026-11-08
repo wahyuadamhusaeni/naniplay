@@ -17,14 +17,22 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 - [x] Skema SQLite: history, favorites
 - [x] Klien AniList: trending, musim berjalan, top, pencarian, detail
 
-## Fase 1 — MVP Bisa Memutar ✅ (target rilis v0.1)
+## Fase 1 — MVP Bisa Memutar ✅ (rilis v0.1.0)
 
 - [x] Provider Otakudesu: pencarian, daftar episode, resolve stream (dekripsi config pemutar putarin, AES-256-GCM)
 - [x] Pencocokan judul AniList → Otakudesu (normalisasi token + musim)
 - [x] Proxy HLS: header Referer/UA, penulisan ulang playlist & segmen
 - [x] Pemutar hls.js: resume otomatis, simpan progres berkala, episode berikutnya otomatis
 - [x] Halaman: Beranda (hero + rail), Detail + episode, Tonton, Pencarian, Daftar Saya, Riwayat
-- [ ] Rilis GitHub Actions: zip Windows + binary Linux per tag
+- [x] Rilis GitHub Actions: zip Windows + binary Linux per tag
+
+## Rilis v0.2.0 — Pengalaman & Fondasi Profesional ✅
+
+- [x] AniSkip: tombol Lewati Opening/Ending/Rekap di pemutar
+- [x] Jadwal Rilis 7 hari (AniList) + Anime Terkait di detail
+- [x] Pencocokan judul berbasis skor + arbitrase jumlah episode
+- [x] Pengaturan: ganti domain sumber dari UI, cek versi & rilis baru
+- [x] Standar repo profesional: CI (gofmt/vet/test/build), unit test, CHANGELOG, badge README
 
 ## Fase 2 — Subtitle Engine
 
@@ -42,8 +50,10 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 ## Fase 4 — AI Fansub & Pelengkap
 
 - [ ] AI fansub BYOK via endpoint OpenAI-compatible apa pun (Gemini/Groq/OpenAI/Ollama/9router sendiri)
-- [ ] AniSkip: deteksi & lewati opening/ending
-- [ ] Jadwal rilis mingguan (AniList airing schedule)
+- [x] AniSkip: deteksi & lewati opening/ending *(selesai lebih awal, di v0.2.0)*
+- [x] Jadwal rilis mingguan (AniList airing schedule) *(selesai lebih awal, di v0.2.0)*
+- [ ] Jelajah genre & filter katalog
+- [ ] Episode mendatang untuk anime di Daftar Saya/Riwayat
 - [ ] Mode TV (navigasi D-pad) di web
 
 ## Nanti

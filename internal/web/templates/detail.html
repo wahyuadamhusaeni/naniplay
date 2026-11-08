@@ -32,6 +32,23 @@
 </section>
 {{end}}
 
+{{if .Relations}}
+<section class="rail">
+  <h2>Terkait</h2>
+  <div class="rail-track">
+    {{range .Relations}}
+    <a class="card" href="/anime/{{.Anime.ID}}">
+      <div class="card-img"><img loading="lazy" src="{{.Anime.Cover}}" alt="{{.Anime.Display}}">
+        <span class="card-badge">{{.Type}}</span>
+      </div>
+      <p class="card-title">{{.Anime.Display}}</p>
+      <p class="card-meta">{{.Anime.SeasonYear}}</p>
+    </a>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
 <section class="episodes">
   <h2>Episode <span class="dim small">{{if .Series}}· {{.Series.Title}} (Otakudesu, Sub Indo){{end}}</span></h2>
   {{if .SourceErr}}<div class="alert">{{.SourceErr}}</div>{{end}}

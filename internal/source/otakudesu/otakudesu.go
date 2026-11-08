@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
@@ -26,8 +27,10 @@ import (
 
 const browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-// Client is the Otakudesu provider.
+// Client is the Otakudesu provider. The base URL can be swapped at
+// runtime because the source changes domains from time to time.
 type Client struct {
+	mu   sync.RWMutex
 	base string
 	http *http.Client
 }
@@ -43,6 +46,20 @@ func New(base string) *Client {
 // Name implements source.Provider.
 func (c *Client) Name() string { return "otakudesu" }
 
+// Base returns the current source base URL.
+func (c *Client) Base() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.base
+}
+
+// SetBase swaps the source base URL (used by the settings page).
+func (c *Client) SetBase(base string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.base = strings.TrimRight(strings.TrimSpace(base), "/")
+}
+
 func (c *Client) fetch(ctx context.Context, rawurl, referer string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawurl, nil)
 	if err != nil {
@@ -50,7 +67,7 @@ func (c *Client) fetch(ctx context.Context, rawurl, referer string) (string, err
 	}
 	req.Header.Set("User-Agent", browserUA)
 	if referer == "" {
-		referer = c.base + "/"
+		referer = c.Base() + "/"
 	}
 	req.Header.Set("Referer", referer)
 	resp, err := c.http.Do(req)
@@ -83,7 +100,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]source.
 		}
 		return -1
 	}, query)
-	u := fmt.Sprintf("%s/?s=%s&post_type=anime", c.base, url.QueryEscape(strings.TrimSpace(clean)))
+	u := fmt.Sprintf("%s/?s=%s&post_type=anime", c.Base(), url.QueryEscape(strings.TrimSpace(clean)))
 	page, err := c.fetch(ctx, u, "")
 	if err != nil {
 		return nil, err
@@ -107,7 +124,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]source.
 func (c *Client) Episodes(ctx context.Context, seriesID string) ([]source.Episode, error) {
 	pageURL := seriesID
 	if !strings.HasPrefix(pageURL, "http") {
-		pageURL = fmt.Sprintf("%s/anime/%s/", c.base, strings.Trim(seriesID, "/"))
+		pageURL = fmt.Sprintf("%s/anime/%s/", c.Base(), strings.Trim(seriesID, "/"))
 	}
 	page, err := c.fetch(ctx, pageURL, "")
 	if err != nil {
@@ -191,7 +208,7 @@ func (c *Client) Resolve(ctx context.Context, episodeURL string) (*source.Stream
 // decryptPlayerConfig fetches the putarin embed page, pulls the AES key for
 // its nonce, and decrypts the player configuration JSON.
 func (c *Client) decryptPlayerConfig(ctx context.Context, embedURL string) (map[string]any, string, error) {
-	page, err := c.fetch(ctx, embedURL, c.base+"/")
+	page, err := c.fetch(ctx, embedURL, c.Base()+"/")
 	if err != nil {
 		return nil, "", err
 	}
@@ -242,36 +259,79 @@ func (c *Client) decryptPlayerConfig(ctx context.Context, embedURL string) (map[
 	return cfg, origin, nil
 }
 
-// Match finds the Otakudesu series whose title best matches an AniList title.
-// It returns nil when nothing is a plausible match.
-func (c *Client) Match(ctx context.Context, titles ...string) (*source.Series, []source.Episode, error) {
+// Match finds the Otakudesu series that best matches one of the given
+// AniList titles. Candidates are scored by token overlap and season
+// agreement; when the expected episode count is known and the top two
+// candidates score closely, the one whose episode count is closer wins.
+// It returns (nil, nil, nil) when nothing is a plausible match — never a
+// blind first-result fallback.
+func (c *Client) Match(ctx context.Context, titles []string, wantEpisodes int) (*source.Series, []source.Episode, error) {
+	type candidate struct {
+		series source.Series
+		score  float64
+	}
+	seen := map[string]bool{}
+	var cands []candidate
 	var lastErr error
 	for _, t := range titles {
 		if strings.TrimSpace(t) == "" {
 			continue
 		}
-		results, err := c.Search(ctx, t, 8)
+		results, err := c.Search(ctx, t, 10)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		for i := range results {
-			if TitlesMatch(t, results[i].Title) {
-				eps, err := c.Episodes(ctx, results[i].ID)
-				if err != nil {
-					return nil, nil, err
-				}
-				return &results[i], eps, nil
+		for _, r := range results {
+			if seen[r.ID] {
+				continue
+			}
+			seen[r.ID] = true
+			if s := ScoreTitle(t, r.Title); s > 0 {
+				cands = append(cands, candidate{series: r, score: s})
 			}
 		}
 	}
-	return nil, nil, lastErr
+	if len(cands) == 0 {
+		return nil, nil, lastErr
+	}
+	sort.SliceStable(cands, func(i, j int) bool { return cands[i].score > cands[j].score })
+	best := cands[0]
+	if best.score < 0.55 {
+		return nil, nil, lastErr
+	}
+	// Close call? Let the episode count arbitrate between the top two.
+	if wantEpisodes > 0 && len(cands) > 1 && best.score-cands[1].score < 0.12 {
+		epsBest, errB := c.Episodes(ctx, best.series.ID)
+		epsSecond, errS := c.Episodes(ctx, cands[1].series.ID)
+		if errB == nil && errS == nil {
+			dB := abs(len(epsBest) - wantEpisodes)
+			dS := abs(len(epsSecond) - wantEpisodes)
+			if dS < dB {
+				return &cands[1].series, epsSecond, nil
+			}
+			return &best.series, epsBest, nil
+		}
+	}
+	eps, err := c.Episodes(ctx, best.series.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &best.series, eps, nil
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 var (
 	nonWord   = regexp.MustCompile(`[^a-z0-9 ]+`)
 	spaceRun  = regexp.MustCompile(`\s+`)
 	seasonTok = regexp.MustCompile(`^(season|s|\d+(nd|rd|th|st))$`)
+	seasonNum = regexp.MustCompile(`(?i)(?:season|s)\s*(\d+)|(\d+)\s*(?:nd|rd|th|st)\s*season`)
 )
 
 func normalizeTitle(s string) []string {
@@ -289,29 +349,56 @@ func normalizeTitle(s string) []string {
 	return out
 }
 
-// TitlesMatch reports whether two titles plausibly name the same series:
-// every distinctive token of the shorter title must appear in the longer.
-func TitlesMatch(a, b string) bool {
-	ta, tb := normalizeTitle(a), normalizeTitle(b)
-	if len(ta) == 0 || len(tb) == 0 {
-		return false
+// extractSeason returns the season number a title refers to (0 = none).
+func extractSeason(s string) int {
+	m := seasonNum.FindStringSubmatch(strings.ToLower(s))
+	if m == nil {
+		return 0
 	}
-	set := map[string]bool{}
-	for _, t := range tb {
-		set[t] = true
-	}
-	short, long := ta, set
-	if len(tb) < len(ta) {
-		short = tb
-		long = map[string]bool{}
-		for _, t := range ta {
-			long[t] = true
+	for _, g := range m[1:] {
+		if g != "" {
+			if n, err := strconv.Atoi(g); err == nil {
+				return n
+			}
 		}
 	}
-	for _, t := range short {
-		if !long[t] {
-			return false
-		}
-	}
-	return true
+	return 0
 }
+
+// ScoreTitle rates how plausibly candidate names the same series as query:
+// token containment blended with Jaccard similarity, heavily penalized
+// when both titles name different seasons.
+func ScoreTitle(query, candidate string) float64 {
+	tq, tc := normalizeTitle(query), normalizeTitle(candidate)
+	if len(tq) == 0 || len(tc) == 0 {
+		return 0
+	}
+	setQ := map[string]bool{}
+	for _, t := range tq {
+		setQ[t] = true
+	}
+	setC := map[string]bool{}
+	for _, t := range tc {
+		setC[t] = true
+	}
+	inter := 0
+	for t := range setQ {
+		if setC[t] {
+			inter++
+		}
+	}
+	if inter == 0 {
+		return 0
+	}
+	containment := float64(inter) / float64(min(len(setQ), len(setC)))
+	jaccard := float64(inter) / float64(len(setQ)+len(setC)-inter)
+	score := 0.7*containment + 0.3*jaccard
+	sq, sc := extractSeason(query), extractSeason(candidate)
+	if sq > 0 && sc > 0 && sq != sc {
+		score *= 0.3
+	}
+	return score
+}
+
+// TitlesMatch reports whether two titles plausibly name the same series.
+func TitlesMatch(a, b string) bool { return ScoreTitle(a, b) >= 0.8 }

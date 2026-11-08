@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
+	"github.com/wahyuadamhusaeni/naniplay/internal/aniskip"
 	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/otakudesu"
@@ -24,9 +26,13 @@ import (
 //go:embed templates static
 var assets embed.FS
 
+// Version is the running build version; main overrides it via -ldflags.
+var Version = "0.2.0"
+
 // Server bundles the HTTP handlers and their dependencies.
 type Server struct {
 	anilist *anilist.Client
+	aniskip *aniskip.Client
 	otaku   *otakudesu.Client
 	db      *store.Store
 	tpl     map[string]*template.Template
@@ -34,6 +40,10 @@ type Server struct {
 	mu       sync.Mutex
 	matches  map[int]matchEntry // anilist id -> otakudesu match
 	episodes map[int][]source.Episode
+
+	relMu     sync.Mutex
+	latestTag string
+	latestAt  time.Time
 }
 
 type matchEntry struct {
@@ -41,17 +51,22 @@ type matchEntry struct {
 	at     time.Time
 }
 
-// New builds a Server.
+// New builds a Server. A saved otakudesu_base setting overrides the
+// configured default, so a source domain change never needs a rebuild.
 func New(db *store.Store, otakuBase string) (*Server, error) {
+	if saved := db.GetSetting("otakudesu_base"); saved != "" {
+		otakuBase = saved
+	}
 	s := &Server{
 		anilist:  anilist.New(),
+		aniskip:  aniskip.New(),
 		otaku:    otakudesu.New(otakuBase),
 		db:       db,
 		tpl:      map[string]*template.Template{},
 		matches:  map[int]matchEntry{},
 		episodes: map[int][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
@@ -73,11 +88,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /anime/{id}", s.detail)
 	mux.HandleFunc("GET /watch/{id}/{ep}", s.watch)
 	mux.HandleFunc("GET /search", s.searchPage)
+	mux.HandleFunc("GET /jadwal", s.schedulePage)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
+	mux.HandleFunc("GET /pengaturan", s.settingsPage)
+	mux.HandleFunc("POST /pengaturan", s.saveSettings)
 
 	mux.HandleFunc("POST /api/history", s.apiSaveHistory)
 	mux.HandleFunc("GET /api/history/{id}/{ep}", s.apiGetHistory)
+	mux.HandleFunc("GET /api/skiptimes/{id}/{ep}", s.apiSkipTimes)
+	mux.HandleFunc("GET /api/health", s.apiHealth)
+	mux.HandleFunc("GET /api/version", s.apiVersion)
 	mux.HandleFunc("POST /favorites/toggle", s.toggleFavorite)
 	mux.Handle("GET /api/proxy", proxy.Handler())
 	return logRequests(mux)
@@ -172,6 +193,7 @@ type detailData struct {
 	Episodes   []source.Episode
 	SourceErr  string
 	Continue   *store.HistoryEntry
+	Relations  []anilist.Relation
 }
 
 func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
@@ -186,6 +208,9 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := detailData{Anime: a, IsFavorite: s.db.IsFavorite(id)}
+	if rels, err := s.anilist.Relations(r.Context(), id); err == nil {
+		data.Relations = rels
+	}
 	series, eps := s.matchEpisodes(r.Context(), a)
 	if series != nil {
 		data.Series = series
@@ -215,7 +240,7 @@ func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.S
 	}
 	s.mu.Unlock()
 
-	series, eps, err := s.otaku.Match(ctx, a.Title.Romaji, a.Title.English)
+	series, eps, err := s.otaku.Match(ctx, []string{a.Title.Romaji, a.Title.English}, a.Episodes)
 	if err != nil || series == nil {
 		return nil, nil
 	}
@@ -227,15 +252,15 @@ func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.S
 }
 
 type watchData struct {
-	Anime      *anilist.Anime
-	Episode    int
-	Stream     *source.Stream
-	ProxyURL   string
-	Episodes   []source.Episode
-	PrevEp     int
-	NextEp     int
-	SavedPos   float64
-	SourceErr  string
+	Anime     *anilist.Anime
+	Episode   int
+	Stream    *source.Stream
+	ProxyURL  string
+	Episodes  []source.Episode
+	PrevEp    int
+	NextEp    int
+	SavedPos  float64
+	SourceErr string
 }
 
 func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
@@ -382,6 +407,181 @@ func (s *Server) apiSaveHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// ---------- schedule ----------
+
+var wib = time.FixedZone("WIB", 7*3600)
+
+var dayNames = []string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
+var monthNames = []string{"", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
+
+type schedItem struct {
+	Time  string
+	Entry anilist.ScheduleEntry
+}
+
+type schedDay struct {
+	Label string
+	Items []schedItem
+}
+
+type jadwalData struct {
+	Days []schedDay
+	Err  string
+}
+
+func (s *Server) schedulePage(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().In(wib)
+	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, wib)
+	to := from.AddDate(0, 0, 7)
+	entries, err := s.anilist.AiringSchedule(r.Context(), from, to)
+	data := jadwalData{}
+	if err != nil {
+		data.Err = err.Error()
+		s.render(w, "jadwal", data)
+		return
+	}
+	byDay := map[string]*schedDay{}
+	var order []string
+	for _, e := range entries {
+		local := e.AiringAt.In(wib)
+		key := local.Format("2006-01-02")
+		day, ok := byDay[key]
+		if !ok {
+			label := fmt.Sprintf("%s, %d %s", dayNames[int(local.Weekday())], local.Day(), monthNames[int(local.Month())])
+			if key == from.Format("2006-01-02") {
+				label = "Hari ini — " + label
+			} else if key == from.AddDate(0, 0, 1).Format("2006-01-02") {
+				label = "Besok — " + label
+			}
+			day = &schedDay{Label: label}
+			byDay[key] = day
+			order = append(order, key)
+		}
+		day.Items = append(day.Items, schedItem{Time: local.Format("15:04"), Entry: e})
+	}
+	for _, k := range order {
+		data.Days = append(data.Days, *byDay[k])
+	}
+	s.render(w, "jadwal", data)
+}
+
+// ---------- settings ----------
+
+type settingsData struct {
+	OtakuBase string
+	Version   string
+	Latest    string
+	Update    bool
+	Saved     bool
+	Err       string
+}
+
+func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
+	latest := s.latestRelease(r.Context())
+	data := settingsData{
+		OtakuBase: s.otaku.Base(),
+		Version:   Version,
+		Latest:    latest,
+		Update:    latest != "" && latest != "v"+Version,
+		Saved:     r.URL.Query().Get("saved") == "1",
+	}
+	s.render(w, "settings", data)
+}
+
+func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "form tidak valid", http.StatusBadRequest)
+		return
+	}
+	base := strings.TrimSpace(r.FormValue("otakudesu_base"))
+	if base != "" && !strings.HasPrefix(base, "https://") && !strings.HasPrefix(base, "http://") {
+		data := settingsData{OtakuBase: s.otaku.Base(), Version: Version, Err: "Alamat sumber harus diawali http:// atau https://"}
+		s.render(w, "settings", data)
+		return
+	}
+	if err := s.db.SetSetting("otakudesu_base", base); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if base != "" {
+		s.otaku.SetBase(base)
+	}
+	// A new source domain invalidates cached matches.
+	s.mu.Lock()
+	s.matches = map[int]matchEntry{}
+	s.episodes = map[int][]source.Episode{}
+	s.mu.Unlock()
+	http.Redirect(w, r, "/pengaturan?saved=1", http.StatusSeeOther)
+}
+
+// latestRelease returns the newest published release tag (cached 6h).
+func (s *Server) latestRelease(ctx context.Context) string {
+	s.relMu.Lock()
+	defer s.relMu.Unlock()
+	if s.latestTag != "" && time.Since(s.latestAt) < 6*time.Hour {
+		return s.latestTag
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.github.com/repos/wahyuadamhusaeni/naniplay/releases/latest", nil)
+	if err != nil {
+		return s.latestTag
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "NaniPlay/"+Version)
+	client := &http.Client{Timeout: 8 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return s.latestTag
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return s.latestTag
+	}
+	var body struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err == nil && body.TagName != "" {
+		s.latestTag = body.TagName
+		s.latestAt = time.Now()
+	}
+	return s.latestTag
+}
+
+// ---------- small APIs ----------
+
+func (s *Server) apiSkipTimes(w http.ResponseWriter, r *http.Request) {
+	id, err1 := strconv.Atoi(r.PathValue("id"))
+	ep, err2 := strconv.Atoi(r.PathValue("ep"))
+	if err1 != nil || err2 != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "parameter tidak valid"})
+		return
+	}
+	a, err := s.anilist.Detail(r.Context(), id)
+	if err != nil || a.IDMal == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{"found": false, "results": []any{}})
+		return
+	}
+	results, err := s.aniskip.SkipTimes(r.Context(), a.IDMal, ep)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"found": false, "results": []any{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"found": len(results) > 0, "results": results})
+}
+
+func (s *Server) apiHealth(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "version": Version})
+}
+
+func (s *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
+	latest := s.latestRelease(r.Context())
+	writeJSON(w, http.StatusOK, map[string]any{
+		"version": Version,
+		"latest":  latest,
+		"update":  latest != "" && latest != "v"+Version,
+	})
 }
 
 func (s *Server) apiGetHistory(w http.ResponseWriter, r *http.Request) {

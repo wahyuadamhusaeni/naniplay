@@ -25,6 +25,7 @@ jobs:
           zip naniplay-windows.zip naniplay.exe README.md LICENSE
       - uses: softprops/action-gh-release@v2
         with:
+          generate_release_notes: true
           files: |
             naniplay-linux-amd64.tar.gz
             naniplay-windows.zip

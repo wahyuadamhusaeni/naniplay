@@ -11,12 +11,14 @@
     <video id="player" controls playsinline poster="{{.Anime.Banner}}"
       data-src="{{.ProxyURL}}"
       data-anilist="{{.Anime.ID}}"
+      data-mal="{{.Anime.IDMal}}"
       data-title="{{.Anime.Display}}"
       data-poster="{{.Anime.Cover}}"
       data-episode="{{.Episode}}"
       data-saved="{{.SavedPos}}"
       {{if .NextEp}}data-next="/watch/{{.Anime.ID}}/{{.NextEp}}"{{end}}>
     </video>
+    <button id="skipBtn" class="skip-btn" type="button" hidden></button>
     <div class="player-meta dim">{{.Stream.Server}} · {{.Stream.SubLang}}</div>
   </div>
   <div class="watch-actions">

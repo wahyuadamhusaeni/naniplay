@@ -33,6 +33,55 @@
       video.currentTime = saved;
     }
     resumed = true;
+    loadSkipTimes();
+  });
+
+  // --- AniSkip: OP/ED skip button -------------------------------------
+  var skipBtn = document.getElementById("skipBtn");
+  var intervals = [];
+  var activeInterval = null;
+  function loadSkipTimes() {
+    fetch("/api/skiptimes/" + meta.anilistId + "/" + meta.episode)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.found || !data.results) return;
+        intervals = data.results.map(function (res) {
+          var scale = res.episodeLength > 0 ? video.duration / res.episodeLength : 1;
+          return { type: res.type, start: res.start * scale, end: res.end * scale };
+        });
+      })
+      .catch(function () {});
+  }
+  function skipLabel(type) {
+    if (type.indexOf("op") >= 0) return "Lewati Opening";
+    if (type.indexOf("ed") >= 0) return "Lewati Ending";
+    if (type === "recap") return "Lewati Rekap";
+    return "Lewati";
+  }
+  if (skipBtn) {
+    skipBtn.addEventListener("click", function () {
+      if (activeInterval) {
+        video.currentTime = activeInterval.end + 0.1;
+        skipBtn.hidden = true;
+        activeInterval = null;
+      }
+    });
+  }
+  video.addEventListener("timeupdate", function () {
+    if (!skipBtn || !intervals.length) return;
+    var t = video.currentTime;
+    var hit = null;
+    for (var i = 0; i < intervals.length; i++) {
+      if (t >= intervals[i].start && t < intervals[i].end - 1) { hit = intervals[i]; break; }
+    }
+    if (hit) {
+      activeInterval = hit;
+      skipBtn.textContent = skipLabel(hit.type) + " ⏭";
+      skipBtn.hidden = false;
+    } else if (activeInterval) {
+      activeInterval = null;
+      skipBtn.hidden = true;
+    }
   });
 
   var lastSent = 0;

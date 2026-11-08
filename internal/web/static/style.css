@@ -130,10 +130,48 @@ img { display: block; max-width: 100%; }
 .watch-wrap { padding: calc(var(--nav-h) + 1rem) 3.5vw 2rem; max-width: 1180px; margin: 0 auto; }
 .back-link { color: var(--muted); font-size: .9rem; }
 .watch-title { font-size: 1.4rem; margin: .5rem 0 1rem; }
+.player-box { position: relative; }
 .player-box video { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: var(--radius); }
+.skip-btn {
+  position: absolute; right: 18px; bottom: 64px; z-index: 5;
+  background: rgba(20,20,20,.82); color: #fff; border: 1px solid rgba(255,255,255,.65);
+  padding: .55rem 1.1rem; font-size: .95rem; font-weight: 700; border-radius: 4px; cursor: pointer;
+}
+.skip-btn:hover { background: #fff; color: #000; }
 .player-meta { padding: .5rem 0; font-size: .82rem; }
 .watch-actions { display: flex; gap: .7rem; margin: .6rem 0 1.4rem; }
 .ep-heading { font-size: 1.1rem; }
+
+/* ---------- schedule ---------- */
+.sched-day { font-size: 1.05rem; margin: 1.6rem 0 .5rem; color: #e5e5e5; }
+.sched-list { display: flex; flex-direction: column; }
+.sched-row {
+  display: flex; align-items: center; gap: 1rem; padding: .45rem .6rem;
+  border-radius: 4px;
+}
+.sched-row:hover { background: var(--bg-soft); }
+.sched-time { font-weight: 800; color: var(--red); width: 52px; flex: 0 0 52px; }
+.sched-row img { width: 40px; height: 56px; object-fit: cover; border-radius: 3px; }
+.sched-title { font-weight: 600; }
+.sched-ep { margin-left: auto; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+
+/* ---------- settings ---------- */
+.settings-wrap { max-width: 760px; }
+.settings-form label { font-weight: 700; font-size: 1.05rem; }
+.settings-row { display: flex; gap: .6rem; margin-top: .6rem; }
+.settings-row input {
+  flex: 1; background: #000; border: 1px solid #555; color: #fff;
+  padding: .7rem .9rem; font-size: 1rem; border-radius: 4px; outline: none;
+}
+.settings-row input:focus { border-color: #fff; }
+.settings-card { margin-top: 2.2rem; background: var(--bg-soft); padding: 1rem 1.2rem; border-radius: var(--radius); }
+.settings-card h3 { margin: 0 0 .4rem; }
+.settings-card p { margin: .2rem 0; }
+.update-note a { color: var(--red); font-weight: 700; }
+.notice {
+  background: #0e2e1a; color: #9be7b4; border: 1px solid #1d5c36;
+  padding: .8rem 1rem; border-radius: 4px; margin-bottom: 1.2rem;
+}
 
 /* ---------- generic pages ---------- */
 .page-wrap { padding: calc(var(--nav-h) + 1.4rem) 3.5vw 2.5rem; }

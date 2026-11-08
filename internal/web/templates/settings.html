@@ -1,0 +1,23 @@
+{{define "title"}}Pengaturan — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap settings-wrap">
+  <h2 class="page-h">Pengaturan</h2>
+  {{if .Saved}}<div class="notice">Pengaturan tersimpan.</div>{{end}}
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+
+  <form method="post" action="/pengaturan" class="settings-form">
+    <label for="otakudesu_base">Domain sumber Otakudesu</label>
+    <p class="dim small">Sumber streaming kadang berpindah domain. Jika putar berhenti bekerja, isi domain terbarunya di sini — tanpa perlu memasang ulang aplikasi. Kosongkan untuk kembali ke bawaan.</p>
+    <div class="settings-row">
+      <input type="url" id="otakudesu_base" name="otakudesu_base" value="{{.OtakuBase}}" placeholder="https://ww2.otakudesu.biz">
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+  </form>
+
+  <div class="settings-card">
+    <h3>Versi</h3>
+    <p>NaniPlay <strong>v{{.Version}}</strong>{{if .Latest}} · Rilis terbaru: <strong>{{.Latest}}</strong>{{end}}</p>
+    {{if .Update}}<p class="update-note">Ada versi baru! Unduh di <a href="https://github.com/wahyuadamhusaeni/naniplay/releases/latest">halaman rilis NaniPlay</a>.</p>{{end}}
+  </div>
+</section>
+{{end}}

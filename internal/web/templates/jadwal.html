@@ -1,0 +1,21 @@
+{{define "title"}}Jadwal Rilis — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">Jadwal Rilis <span class="dim small">7 hari ke depan · WIB</span></h2>
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  {{range .Days}}
+  <h3 class="sched-day">{{.Label}}</h3>
+  <div class="sched-list">
+    {{range .Items}}
+    <a class="sched-row" href="/anime/{{.Entry.Anime.ID}}">
+      <span class="sched-time">{{.Time}}</span>
+      <img loading="lazy" src="{{.Entry.Anime.Cover}}" alt="{{.Entry.Anime.Display}}">
+      <span class="sched-title">{{.Entry.Anime.Display}}</span>
+      <span class="sched-ep">Episode {{.Entry.Episode}}</span>
+    </a>
+    {{end}}
+  </div>
+  {{end}}
+  {{if and (not .Days) (not .Err)}}<p class="dim">Jadwal belum tersedia. Coba muat ulang sebentar lagi.</p>{{end}}
+</section>
+{{end}}

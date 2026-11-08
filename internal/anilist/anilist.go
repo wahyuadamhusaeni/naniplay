@@ -18,6 +18,7 @@ const endpoint = "https://graphql.anilist.co"
 // Anime is the subset of AniList Media fields NaniPlay renders.
 type Anime struct {
 	ID          int      `json:"id"`
+	IDMal       int      `json:"idMal"`
 	Title       Title    `json:"title"`
 	Cover       string   // coverImage.extraLarge
 	Banner      string   // bannerImage
@@ -50,9 +51,10 @@ func (a Anime) Display() string {
 }
 
 type mediaRaw struct {
-	ID          int    `json:"id"`
-	Title       Title  `json:"title"`
-	CoverImage  struct {
+	ID         int   `json:"id"`
+	IDMal      int   `json:"idMal"`
+	Title      Title `json:"title"`
+	CoverImage struct {
 		ExtraLarge string `json:"extraLarge"`
 	} `json:"coverImage"`
 	BannerImage string   `json:"bannerImage"`
@@ -77,7 +79,7 @@ type mediaRaw struct {
 
 func (m mediaRaw) toAnime() Anime {
 	a := Anime{
-		ID: m.ID, Title: m.Title, Cover: m.CoverImage.ExtraLarge, Banner: m.BannerImage,
+		ID: m.ID, IDMal: m.IDMal, Title: m.Title, Cover: m.CoverImage.ExtraLarge, Banner: m.BannerImage,
 		Score: m.Score, SeasonYear: m.SeasonYear, Season: m.Season, Format: m.Format,
 		Episodes: m.Episodes, Duration: m.Duration, Status: m.Status, Genres: m.Genres,
 		Description: stripHTML(m.Description),
@@ -130,6 +132,7 @@ func New() *Client {
 
 const mediaFields = `
   id
+  idMal
   title { romaji english native }
   coverImage { extraLarge }
   bannerImage
@@ -149,7 +152,12 @@ const mediaFields = `
 type gqlResponse struct {
 	Data struct {
 		Page struct {
-			Media []mediaRaw `json:"media"`
+			Media           []mediaRaw `json:"media"`
+			AiringSchedules []struct {
+				AiringAt int64    `json:"airingAt"`
+				Episode  int      `json:"episode"`
+				Media    mediaRaw `json:"media"`
+			} `json:"airingSchedules"`
 		} `json:"Page"`
 		Media *mediaRaw `json:"Media"`
 	} `json:"data"`
@@ -158,14 +166,14 @@ type gqlResponse struct {
 	} `json:"errors"`
 }
 
-func (c *Client) query(ctx context.Context, key, gql string, vars map[string]any, ttl time.Duration) (*gqlResponse, error) {
+// rawQuery performs a GraphQL call and returns the raw response body,
+// served from the in-memory cache while fresh.
+func (c *Client) rawQuery(ctx context.Context, key, gql string, vars map[string]any, ttl time.Duration) ([]byte, error) {
 	c.mu.Lock()
 	if e, ok := c.cache[key]; ok && time.Since(e.at) < ttl {
+		body := e.body
 		c.mu.Unlock()
-		var r gqlResponse
-		if err := json.Unmarshal(e.body, &r); err == nil {
-			return &r, nil
-		}
+		return body, nil
 	}
 	c.mu.Unlock()
 
@@ -176,7 +184,7 @@ func (c *Client) query(ctx context.Context, key, gql string, vars map[string]any
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "NaniPlay/0.1 (+https://github.com/wahyuadamhusaeni/naniplay)")
+	req.Header.Set("User-Agent", "NaniPlay/0.2 (+https://github.com/wahyuadamhusaeni/naniplay)")
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
@@ -188,20 +196,33 @@ func (c *Client) query(ctx context.Context, key, gql string, vars map[string]any
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("anilist: HTTP %d", resp.StatusCode)
 	}
-	var body bytes.Buffer
-	if _, err := body.ReadFrom(resp.Body); err != nil {
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(resp.Body); err != nil {
+		return nil, err
+	}
+	var probe struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &probe); err == nil && len(probe.Errors) > 0 {
+		return nil, fmt.Errorf("anilist: %s", probe.Errors[0].Message)
+	}
+	c.mu.Lock()
+	c.cache[key] = cacheEntry{body: buf.Bytes(), at: time.Now()}
+	c.mu.Unlock()
+	return buf.Bytes(), nil
+}
+
+func (c *Client) query(ctx context.Context, key, gql string, vars map[string]any, ttl time.Duration) (*gqlResponse, error) {
+	body, err := c.rawQuery(ctx, key, gql, vars, ttl)
+	if err != nil {
 		return nil, err
 	}
 	var r gqlResponse
-	if err := json.Unmarshal(body.Bytes(), &r); err != nil {
+	if err := json.Unmarshal(body, &r); err != nil {
 		return nil, err
 	}
-	if len(r.Errors) > 0 {
-		return nil, fmt.Errorf("anilist: %s", r.Errors[0].Message)
-	}
-	c.mu.Lock()
-	c.cache[key] = cacheEntry{body: body.Bytes(), at: time.Now()}
-	c.mu.Unlock()
 	return &r, nil
 }
 
@@ -269,6 +290,116 @@ func (c *Client) Detail(ctx context.Context, id int) (*Anime, error) {
 	}
 	a := r.Data.Media.toAnime()
 	return &a, nil
+}
+
+// ScheduleEntry is one upcoming episode airing.
+type ScheduleEntry struct {
+	AiringAt time.Time
+	Episode  int
+	Anime    Anime
+}
+
+// AiringSchedule returns episode airings between from and to (inclusive),
+// ordered by time. Results are cached for three hours.
+func (c *Client) AiringSchedule(ctx context.Context, from, to time.Time) ([]ScheduleEntry, error) {
+	gql := `query ($page: Int, $from: Int, $to: Int) {
+		Page(page: $page, perPage: 50) {
+			airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, sort: TIME) {
+				airingAt
+				episode
+				media { ` + mediaFields + ` }
+			}
+		}
+	}`
+	out := []ScheduleEntry{}
+	for page := 1; page <= 16; page++ {
+		key := fmt.Sprintf("sched-%d-%d-%d", from.Unix(), to.Unix(), page)
+		r, err := c.query(ctx, key, gql, map[string]any{
+			"page": page, "from": int(from.Unix()), "to": int(to.Unix()),
+		}, 3*time.Hour)
+		if err != nil {
+			if page == 1 {
+				return nil, err
+			}
+			break
+		}
+		for _, s := range r.Data.Page.AiringSchedules {
+			out = append(out, ScheduleEntry{
+				AiringAt: time.Unix(s.AiringAt, 0),
+				Episode:  s.Episode,
+				Anime:    s.Media.toAnime(),
+			})
+		}
+		if len(r.Data.Page.AiringSchedules) < 50 {
+			break
+		}
+	}
+	return out, nil
+}
+
+// Relation is an anime related to another (sequel, prequel, side story...).
+type Relation struct {
+	Type  string // AniList relationType, e.g. SEQUEL, PREQUEL
+	Anime Anime
+}
+
+// Relations returns the relations of one anime, sequels and prequels first.
+func (c *Client) Relations(ctx context.Context, id int) ([]Relation, error) {
+	gql := `query ($id: Int) {
+		Media(id: $id, type: ANIME) {
+			relations {
+				edges {
+					relationType
+					node { ` + mediaFields + ` }
+				}
+			}
+		}
+	}`
+	var raw struct {
+		Data struct {
+			Media *struct {
+				Relations struct {
+					Edges []struct {
+						RelationType string   `json:"relationType"`
+						Node         mediaRaw `json:"node"`
+					} `json:"edges"`
+				} `json:"relations"`
+			} `json:"Media"`
+		} `json:"data"`
+	}
+	body, err := c.rawQuery(ctx, fmt.Sprintf("rel-%d", id), gql, map[string]any{"id": id}, 30*time.Minute)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, err
+	}
+	if raw.Data.Media == nil {
+		return nil, nil
+	}
+	priority := map[string]int{"SEQUEL": 0, "PREQUEL": 1, "PARENT": 2, "SIDE_STORY": 3, "ALTERNATIVE": 4}
+	out := []Relation{}
+	for _, e := range raw.Data.Media.Relations.Edges {
+		a := e.Node.toAnime()
+		if a.Format != "TV" && a.Format != "MOVIE" && a.Format != "ONA" && a.Format != "TV_SHORT" {
+			continue // skip manga/novel/music relations
+		}
+		out = append(out, Relation{Type: e.RelationType, Anime: a})
+	}
+	sortRelations(out, priority)
+	return out, nil
+}
+
+func sortRelations(r []Relation, priority map[string]int) {
+	for i := 1; i < len(r); i++ {
+		for j := i; j > 0; j-- {
+			pi, pj := priority[r[j].Type], priority[r[j-1].Type]
+			if pi >= pj {
+				break
+			}
+			r[j], r[j-1] = r[j-1], r[j]
+		}
+	}
 }
 
 func currentSeason() (string, int) {

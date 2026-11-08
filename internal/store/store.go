@@ -88,6 +88,10 @@ func (s *Store) migrate() error {
 			poster     TEXT NOT NULL DEFAULT '',
 			added_at   INTEGER NOT NULL DEFAULT 0
 		)`,
+		`CREATE TABLE IF NOT EXISTS settings (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		)`,
 	}
 	for _, q := range stmts {
 		if _, err := s.db.Exec(q); err != nil {
@@ -97,7 +101,8 @@ func (s *Store) migrate() error {
 	return nil
 }
 
-// SaveHistory upserts a history entry.
+// SaveHistory upserts a history entry. Timestamps are unix milliseconds:
+// second precision would tie rapid consecutive saves.
 func (s *Store) SaveHistory(h HistoryEntry) error {
 	_, err := s.db.Exec(
 		`INSERT INTO history (anilist_id, episode, title, poster, position, duration, updated_at)
@@ -106,7 +111,7 @@ func (s *Store) SaveHistory(h HistoryEntry) error {
 		   title=excluded.title, poster=excluded.poster,
 		   position=excluded.position, duration=excluded.duration,
 		   updated_at=excluded.updated_at`,
-		h.AnilistID, h.Episode, h.Title, h.Poster, h.Position, h.Duration, time.Now().Unix())
+		h.AnilistID, h.Episode, h.Title, h.Poster, h.Position, h.Duration, time.Now().UnixMilli())
 	return err
 }
 
@@ -123,23 +128,42 @@ func (s *Store) HistoryFor(anilistID, episode int) (*HistoryEntry, error) {
 		}
 		return nil, err
 	}
-	h.UpdatedAt = time.Unix(ts, 0)
+	h.UpdatedAt = time.UnixMilli(ts)
 	return &h, nil
 }
 
 // ContinueWatching returns the most recent episode per anime, newest first.
+// Deduplication happens in Go so tied timestamps can never surface the
+// same anime twice.
 func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
+	fetch := limit * 5
+	if fetch < 50 {
+		fetch = 50
+	}
 	rows, err := s.db.Query(
-		`SELECT h.anilist_id, h.title, h.poster, h.episode, h.position, h.duration, h.updated_at
-		 FROM history h
-		 JOIN (SELECT anilist_id, MAX(updated_at) AS mu FROM history GROUP BY anilist_id) m
-		   ON m.anilist_id = h.anilist_id AND m.mu = h.updated_at
-		 ORDER BY h.updated_at DESC LIMIT ?`, limit)
+		`SELECT anilist_id, title, poster, episode, position, duration, updated_at
+		 FROM history ORDER BY updated_at DESC LIMIT ?`, fetch)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanHistory(rows)
+	all, err := scanHistory(rows)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[int]bool{}
+	out := []HistoryEntry{}
+	for _, h := range all {
+		if seen[h.AnilistID] {
+			continue
+		}
+		seen[h.AnilistID] = true
+		out = append(out, h)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out, nil
 }
 
 // AllHistory returns every history entry, newest first.
@@ -162,7 +186,7 @@ func scanHistory(rows *sql.Rows) ([]HistoryEntry, error) {
 		if err := rows.Scan(&h.AnilistID, &h.Title, &h.Poster, &h.Episode, &h.Position, &h.Duration, &ts); err != nil {
 			return nil, err
 		}
-		h.UpdatedAt = time.Unix(ts, 0)
+		h.UpdatedAt = time.UnixMilli(ts)
 		out = append(out, h)
 	}
 	return out, rows.Err()
@@ -171,6 +195,23 @@ func scanHistory(rows *sql.Rows) ([]HistoryEntry, error) {
 // DeleteHistory removes one anime (all episodes) from history.
 func (s *Store) DeleteHistory(anilistID int) error {
 	_, err := s.db.Exec(`DELETE FROM history WHERE anilist_id = ?`, anilistID)
+	return err
+}
+
+// GetSetting returns a settings value, or "" when unset.
+func (s *Store) GetSetting(key string) string {
+	var v string
+	if err := s.db.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&v); err != nil {
+		return ""
+	}
+	return v
+}
+
+// SetSetting upserts a settings value.
+func (s *Store) SetSetting(key, value string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO settings (key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 	return err
 }
 

@@ -3,6 +3,11 @@
 **Pemutar & agregator anime subtitle Indonesia** untuk Web (self-hosted) dan Windows.
 Satu binary Go: ringan, tanpa akun, tanpa iklan, tanpa runtime tambahan.
 
+[![Rilis](https://img.shields.io/github/v/release/wahyuadamhusaeni/naniplay?style=flat-square&color=e50914&label=Rilis)](https://github.com/wahyuadamhusaeni/naniplay/releases/latest)
+[![Bintang](https://img.shields.io/github/stars/wahyuadamhusaeni/naniplay?style=flat-square&logo=github&color=e3b341&label=Stars)](https://github.com/wahyuadamhusaeni/naniplay/stargazers)
+[![Lisensi](https://img.shields.io/badge/Lisensi-MIT-blue.svg?style=flat-square)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/wahyuadamhusaeni/naniplay/ci.yml?style=flat-square&label=CI)](https://github.com/wahyuadamhusaeni/naniplay/actions/workflows/ci.yml)
+
 > Terinspirasi dari [Tatap](https://github.com/asfaraguest/tatap), ditulis ulang dari nol dengan Go
 > dan antarmuka bergaya layanan streaming modern yang sudah familiar: tema gelap,
 > aksen merah, hero banner, dan baris-baris poster.
@@ -11,9 +16,13 @@ Satu binary Go: ringan, tanpa akun, tanpa iklan, tanpa runtime tambahan.
 
 - **Beranda bergaya streaming** — hero anime trending + rail *Sedang Trending*, *Populer Musim Ini*, *Rating Tertinggi*
 - **Lanjutkan Menonton** — posisi putar tersimpan otomatis per episode (SQLite lokal), lanjut di perangkat mana pun
+- **Lewati Opening/Ending** — tombol skip OP/ED dari data komunitas AniSkip, menyesuaikan durasi berkas
+- **Jadwal Rilis** — jadwal tayang 7 hari ke depan (WIB)
+- **Anime Terkait** — sekuel, prekuel, dan cerita sampingan di setiap halaman detail
 - **Daftar Saya** — favorit tersimpan lokal
 - **Metadata AniList** — katalog, pencarian, musim, dan detail anime dari API publik AniList
-- **Stream Sub Indo (Otakudesu)** — pencarian sumber otomatis berdasarkan judul, daftar episode, dan pemutar HLS lewat proxy bawaan
+- **Stream Sub Indo (Otakudesu)** — pencarian sumber otomatis berdasarkan judul (pencocokan berbasis skor + jumlah episode), daftar episode, dan pemutar HLS lewat proxy bawaan
+- **Pengaturan** — ganti domain sumber dari UI bila sumber berpindah domain; cek versi & rilis baru
 - **Satu binary** — jalan di VPS/home server sebagai web, atau sebagai aplikasi portable di Windows (klik, browser terbuka)
 
 ## Menjalankan
