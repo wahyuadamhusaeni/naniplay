@@ -130,6 +130,7 @@ func embedNetPatch(origin, docURL string) string {
 func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	raw := r.URL.Query().Get("src")
 	ref := r.URL.Query().Get("ref")
+	log.Printf("[indo-raw-in] %s src=%q ref=%q", r.Method, raw, ref)
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || !publicEmbedHost(u.Hostname()) {
 		http.Error(w, "URL tidak diizinkan", http.StatusBadRequest)

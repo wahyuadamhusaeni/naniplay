@@ -4,6 +4,13 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.6] — 2026-11-08
+
+### Ditambah
+- Log diagnostik `[indo-raw-in]` mencatat setiap permintaan yang
+  masuk ke proxy embed (metode + parameter src/ref mentah) untuk
+  menelusuri panggilan aplikasi player yang gagal validasi.
+
 ## [1.9.5] — 2026-11-08
 
 ### Ditambah
