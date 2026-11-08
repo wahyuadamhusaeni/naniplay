@@ -142,6 +142,37 @@ img { display: block; max-width: 100%; }
 .watch-actions { display: flex; gap: .7rem; margin: .6rem 0 1.4rem; }
 .ep-heading { font-size: 1.1rem; }
 
+/* ---------- subtitle panel ---------- */
+.sub-panel {
+  margin-top: 1rem; background: var(--bg-soft); border-radius: var(--radius);
+  padding: .9rem 1rem .4rem;
+}
+.sub-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.sub-label { font-size: .95rem; }
+.sub-panel select, .sub-panel input[type="url"] {
+  background: #000; border: 1px solid #555; color: #fff; border-radius: 4px;
+  padding: .5rem .7rem; font-size: .92rem; outline: none;
+}
+.sub-panel select { max-width: 420px; flex: 1 1 220px; }
+.sub-panel input[type="url"] { flex: 1 1 200px; }
+.sub-panel select:focus, .sub-panel input[type="url"]:focus { border-color: #fff; }
+.sub-offset { display: inline-flex; align-items: center; gap: .45rem; margin-left: auto; }
+.sub-offset button {
+  background: #000; color: #fff; border: 1px solid #555; border-radius: 4px;
+  padding: .4rem .6rem; cursor: pointer; font-size: .85rem;
+}
+.sub-offset button:hover { border-color: #fff; }
+#subOffsetVal { min-width: 52px; text-align: center; font-weight: 700; font-size: .9rem; }
+.sub-upload-label { cursor: pointer; }
+.sub-results { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .6rem; }
+.sub-result {
+  text-align: left; background: #000; color: #e5e5e5; border: 1px solid #444;
+  border-radius: 4px; padding: .5rem .7rem; cursor: pointer; font-size: .88rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sub-result:hover { border-color: var(--red); }
+.sub-result:disabled { opacity: .5; cursor: wait; }
+
 /* ---------- schedule ---------- */
 .sched-day { font-size: 1.05rem; margin: 1.6rem 0 .5rem; color: #e5e5e5; }
 .sched-list { display: flex; flex-direction: column; }

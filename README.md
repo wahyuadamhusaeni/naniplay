@@ -17,6 +17,7 @@ Satu binary Go: ringan, tanpa akun, tanpa iklan, tanpa runtime tambahan.
 - **Beranda bergaya streaming** — hero anime trending + rail *Sedang Trending*, *Populer Musim Ini*, *Rating Tertinggi*
 - **Lanjutkan Menonton** — posisi putar tersimpan otomatis per episode (SQLite lokal), lanjut di perangkat mana pun
 - **Lewati Opening/Ending** — tombol skip OP/ED dari data komunitas AniSkip, menyesuaikan durasi berkas
+- **Subtitle lunak (softsub)** — cari subtitle Indonesia/Inggris dari OpenSubtitles tanpa API key, unggah file (.srt/.vtt/.ass), atau ambil dari URL; semua dikonversi ke WebVTT, tersimpan per episode, dengan koreksi desync ±0,5s dari pemutar
 - **Jadwal Rilis** — jadwal tayang 7 hari ke depan (WIB)
 - **Anime Terkait** — sekuel, prekuel, dan cerita sampingan di setiap halaman detail
 - **Daftar Saya** — favorit tersimpan lokal

@@ -4,6 +4,32 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.3.0] - 2026-11-08
+
+### Ditambahkan
+- **Mesin subtitle (softsub)** di pemutar:
+  - **Cari Subtitle Online** — OpenSubtitles tanpa API key (API publik +
+    resolusi IMDb otomatis). Kandidat divalidasi ketat terhadap judul,
+    musim, dan episode, diberi skor (bahasa, grup rilis tepercaya, jumlah
+    unduhan), dan dibersihkan dari iklan/watermark OpenSubtitles.
+    Bahasa Indonesia diprioritaskan; Melayu tidak pernah tertukar sebagai
+    Indonesia.
+  - **Unggah file** subtitle sendiri (.srt/.vtt/.ass, maks 2 MiB).
+  - **Ambil dari URL** — tempel tautan file subtitle dari mana pun.
+  - Semua format dinormalisasi ke WebVTT; track tersimpan per episode di
+    SQLite dan dapat dihapus dari pemutar.
+  - **Koreksi desync manual** — geser timing subtitle ±0,5 detik langsung
+    dari pemutar bila subtitle tidak sinkron dengan video.
+- Unit test untuk parser SRT/VTT/ASS, pembersih iklan, pencocokan rilis
+  subtitle, dan penyimpanan track.
+
+### Catatan
+- Sumber AnimeTosho ditunda: lampiran subtitle di sisi upstream sedang
+  tidak dapat diunduh (tautan unduh resmi mereka sendiri membalas 404
+  pada 2026-11-08). Akan ditinjau ulang secara berkala; arsitektur
+  sumber subtitle memang dirancang agar sumber baru bisa ditambahkan
+  tanpa mengubah pemutar.
+
 ## [0.2.0] - 2026-11-08
 
 ### Ditambahkan
@@ -37,5 +63,6 @@ versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 - Satu binary Go untuk Web (self-hosted) dan Windows (portable, membuka browser).
 - Workflow rilis GitHub Actions: zip Windows + tarball Linux per tag versi.
 
+[0.3.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.3.0
 [0.2.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.2.0
 [0.1.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.1.0

@@ -92,6 +92,17 @@ func (s *Store) migrate() error {
 			key   TEXT PRIMARY KEY,
 			value TEXT NOT NULL DEFAULT ''
 		)`,
+		`CREATE TABLE IF NOT EXISTS subtitle_tracks (
+			id         TEXT PRIMARY KEY,
+			anilist_id INTEGER NOT NULL,
+			episode    INTEGER NOT NULL,
+			label      TEXT NOT NULL,
+			lang       TEXT NOT NULL DEFAULT '',
+			source     TEXT NOT NULL,
+			content    TEXT NOT NULL,
+			created_at INTEGER NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_subtitle_tracks ON subtitle_tracks(anilist_id, episode)`,
 	}
 	for _, q := range stmts {
 		if _, err := s.db.Exec(q); err != nil {
@@ -212,6 +223,76 @@ func (s *Store) SetSetting(key, value string) error {
 	_, err := s.db.Exec(
 		`INSERT INTO settings (key, value) VALUES (?, ?)
 		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
+}
+
+// SubtitleTrack is a subtitle file saved for one episode. The raw
+// content (SRT/VTT/ASS as fetched or uploaded) is stored as-is and
+// converted to WebVTT when served, so timing offsets never mutate it.
+type SubtitleTrack struct {
+	ID        string    `json:"id"`
+	AnilistID int       `json:"anilistId"`
+	Episode   int       `json:"episode"`
+	Label     string    `json:"label"`
+	Lang      string    `json:"lang"`
+	Source    string    `json:"source"` // upload | external | opensubtitles
+	Content   string    `json:"-"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// SaveSubtitleTrack stores a subtitle track.
+func (s *Store) SaveSubtitleTrack(t SubtitleTrack) error {
+	_, err := s.db.Exec(
+		`INSERT INTO subtitle_tracks (id, anilist_id, episode, label, lang, source, content, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.AnilistID, t.Episode, t.Label, t.Lang, t.Source, t.Content, time.Now().Unix())
+	return err
+}
+
+// SubtitleTracks lists saved tracks for an episode (without content).
+func (s *Store) SubtitleTracks(anilistID, episode int) ([]SubtitleTrack, error) {
+	rows, err := s.db.Query(
+		`SELECT id, anilist_id, episode, label, lang, source, created_at
+		 FROM subtitle_tracks WHERE anilist_id = ? AND episode = ?
+		 ORDER BY created_at ASC`, anilistID, episode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []SubtitleTrack{}
+	for rows.Next() {
+		var t SubtitleTrack
+		var ts int64
+		if err := rows.Scan(&t.ID, &t.AnilistID, &t.Episode, &t.Label, &t.Lang, &t.Source, &ts); err != nil {
+			return nil, err
+		}
+		t.CreatedAt = time.Unix(ts, 0)
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// SubtitleTrack returns one track including its content, or nil.
+func (s *Store) SubtitleTrack(id string) (*SubtitleTrack, error) {
+	var t SubtitleTrack
+	var ts int64
+	err := s.db.QueryRow(
+		`SELECT id, anilist_id, episode, label, lang, source, content, created_at
+		 FROM subtitle_tracks WHERE id = ?`, id).
+		Scan(&t.ID, &t.AnilistID, &t.Episode, &t.Label, &t.Lang, &t.Source, &t.Content, &ts)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	t.CreatedAt = time.Unix(ts, 0)
+	return &t, nil
+}
+
+// DeleteSubtitleTrack removes a saved track.
+func (s *Store) DeleteSubtitleTrack(id string) error {
+	_, err := s.db.Exec(`DELETE FROM subtitle_tracks WHERE id = ?`, id)
 	return err
 }
 

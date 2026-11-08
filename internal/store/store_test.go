@@ -67,6 +67,37 @@ func TestFavoritesToggle(t *testing.T) {
 	}
 }
 
+func TestSubtitleTracksRoundtrip(t *testing.T) {
+	s := openTestStore(t)
+	tr := SubtitleTrack{ID: "sub_test1", AnilistID: 20, Episode: 3, Label: "uji.srt", Lang: "id", Source: "upload", Content: "1\n00:00:01,000 --> 00:00:02,000\nHalo\n"}
+	if err := s.SaveSubtitleTrack(tr); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.SubtitleTracks(20, 3)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("daftar track: %v / %d", err, len(list))
+	}
+	if list[0].Content != "" {
+		t.Error("daftar tidak boleh membawa isi subtitle")
+	}
+	got, err := s.SubtitleTrack("sub_test1")
+	if err != nil || got == nil {
+		t.Fatalf("ambil track: %v / %v", got, err)
+	}
+	if got.Content != tr.Content || got.Label != "uji.srt" {
+		t.Errorf("isi track salah: %+v", got)
+	}
+	if missing, _ := s.SubtitleTrack("sub_tidakada"); missing != nil {
+		t.Error("track tak dikenal harusnya nil")
+	}
+	if err := s.DeleteSubtitleTrack("sub_test1"); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := s.SubtitleTracks(20, 3); len(list) != 0 {
+		t.Error("track harusnya terhapus")
+	}
+}
+
 func TestSettingsRoundtrip(t *testing.T) {
 	s := openTestStore(t)
 	if got := s.GetSetting("otakudesu_base"); got != "" {

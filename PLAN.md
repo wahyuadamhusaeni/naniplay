@@ -34,12 +34,13 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 - [x] Pengaturan: ganti domain sumber dari UI, cek versi & rilis baru
 - [x] Standar repo profesional: CI (gofmt/vet/test/build), unit test, CHANGELOG, badge README
 
-## Fase 2 — Subtitle Engine
+## Fase 2 — Subtitle Engine *(sebagian besar selesai di v0.3.0)*
 
-- [ ] Ambil subtitle dari OpenSubtitles & AnimeTosho; parser WebVTT/ASS
-- [ ] Merge multi-sumber dengan prioritas (bawaan → komunitas → AI)
-- [ ] Koreksi desync (geser timing) otomatis & manual
-- [ ] Pilihan track subtitle di pemutar
+- [x] Ambil subtitle dari OpenSubtitles (tanpa API key); parser SRT/WebVTT/ASS → WebVTT
+- [ ] AnimeTosho — **tertunda**: lampiran subtitle upstream sedang rusak (tautan unduh resmi mereka sendiri membalas 404 per 2026-11-08, terverifikasi dari dua jaringan); tinjau ulang berkala
+- [ ] Merge multi-sumber dengan prioritas (bawaan → komunitas → AI) — *parsial: prioritas & pilihan sumber sudah ada; penggabungan isi dua track menjadi satu belum*
+- [x] Koreksi desync manual (offset ±0,5s di pemutar); otomatis belum
+- [x] Pilihan track subtitle di pemutar + unggah file + ambil dari URL
 
 ## Fase 3 — Sumber Kedua
 
