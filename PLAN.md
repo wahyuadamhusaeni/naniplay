@@ -59,7 +59,7 @@ publik situs sumber yang dipelajari, bukan kode proyek lain.
 - [x] Provider HiAnime (katalog besar; dekripsi payload Megaplay AES-256-CBC; softsub bawaan terimpor & bisa diterjemahkan GTX)
 - [x] Server lama ZokoAnime untuk judul yang hanya punya server itu (blob XOR window.__P)
 - [x] Provider AniChan (anichan.to — berkunci ID AniList; sesi + triple kunci hasil scrape bundle; payload server AES-256-GCM; subtitle bawaan terimpor)
-- [x] Fallback otomatis antar sumber bila satu gagal (Otakudesu → HiAnime → AniChan)
+- [x] Fallback otomatis antar sumber bila satu gagal (HiAnime → AniChan → Otakudesu sejak v1.11.0)
 - [x] Indikator sumber di halaman detail
 
 ## Fase 4 — AI Fansub & Pelengkap

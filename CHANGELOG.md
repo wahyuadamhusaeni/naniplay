@@ -4,6 +4,17 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.11.0] — 2026-11-09
+
+### Diubah
+- Urutan bawaan pencocokan sumber anime kini **HiAnime → AniChan →
+  Otakudesu** (sebelumnya Otakudesu lebih dulu). Katalog berbasis
+  AniList terbukti lengkap urutan episodenya, sedangkan daftar
+  Otakudesu yang manual bisa bolong (contoh nyata: Overgeared
+  episode 2 & 4 tidak ada di Otakudesu). Pengaturan "Sumber utama
+  anime" tetap dapat mendahulukan sumber pilihan pengguna, dan
+  label opsi Otomatis di Pengaturan mengikuti urutan baru.
+
 ## [1.10.0] — 2026-11-08
 
 ### Diubah

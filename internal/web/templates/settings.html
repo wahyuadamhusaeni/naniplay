@@ -11,7 +11,7 @@
     <label for="preferred_source">Sumber utama anime</label>
     <div class="settings-row">
       <select id="preferred_source" name="preferred_source">
-        <option value=""{{if eq .PrefSource ""}} selected{{end}}>Otomatis (Otakudesu → HiAnime → AniChan)</option>
+        <option value=""{{if eq .PrefSource ""}} selected{{end}}>Otomatis (HiAnime → AniChan → Otakudesu)</option>
         <option value="otakudesu"{{if eq .PrefSource "otakudesu"}} selected{{end}}>Otakudesu (sub Indo hardsub)</option>
         <option value="hianime"{{if eq .PrefSource "hianime"}} selected{{end}}>HiAnime</option>
         <option value="anichan"{{if eq .PrefSource "anichan"}} selected{{end}}>AniChan</option>

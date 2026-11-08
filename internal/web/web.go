@@ -601,12 +601,16 @@ func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime, forced str
 		name string
 		fn   func() (*source.Series, []source.Episode, error)
 	}
+	// Urutan bawaan (keputusan Adam 2026-11-09): HiAnime → AniChan →
+	// Otakudesu. Katalog berbasis AniList terbukti lengkap urutan
+	// episodenya, sedangkan daftar Otakudesu manual bisa bolong
+	// (mis. Overgeared ep 2 & 4 tidak ada di sana).
 	attempts := []attempt{
-		{s.otaku.Name(), func() (*source.Series, []source.Episode, error) { return s.otaku.Match(ctx, titles, a.Episodes) }},
 		{s.hi.Name(), func() (*source.Series, []source.Episode, error) { return s.hi.Match(ctx, titles, a.Episodes) }},
 		{s.ani.Name(), func() (*source.Series, []source.Episode, error) {
 			return s.ani.Lookup(ctx, a.ID, a.Title.Romaji, a.Episodes)
 		}},
+		{s.otaku.Name(), func() (*source.Series, []source.Episode, error) { return s.otaku.Match(ctx, titles, a.Episodes) }},
 	}
 	// The user's preferred source (Settings) goes first; the rest of
 	// the chain still applies as fallback.
