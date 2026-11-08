@@ -4,6 +4,15 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.0.1] — 2026-11-08
+
+### Diperbaiki
+- **Halaman detail anime terpotong**: chip Episode Mendatang dirujuk
+  sebagai `.NextLabel` di dalam blok `{{with .Anime}}` sehingga
+  eksekusi template gagal dan halaman berhenti setelah meta hero
+  (daftar episode hilang). Kini dirujuk dari akar data (`$.NextLabel`)
+  dan halaman tampil utuh lagi.
+
 ## [1.0.0] — 2026-11-08
 
 Rilis 1.0: NaniPlay lengkap untuk web (mobile & desktop) dan Windows —
