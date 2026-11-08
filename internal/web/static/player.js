@@ -24,6 +24,7 @@
       hls.loadSource(src);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, buildQualityMenu);
+      hls.on(Hls.Events.MANIFEST_PARSED, applyQualityPref);
       hls.on(Hls.Events.LEVEL_SWITCHED, function (_e, data) {
         markQuality(data.level);
       });
@@ -281,6 +282,24 @@
     });
   }
 
+  // Kualitas bawaan dari Pengaturan: pilih level tertinggi yang
+  // tidak melampaui preferensi (mis. 720 -> 720p atau di bawahnya).
+  var qualityApplied = false;
+  function applyQualityPref() {
+    if (qualityApplied || !hls || !hls.levels || !hls.levels.length) return;
+    var want = parseInt(video.dataset.quality || "", 10);
+    if (!want) return;
+    qualityApplied = true;
+    var best = -1, bestH = -1, low = -1, lowH = Infinity;
+    for (var i = 0; i < hls.levels.length; i++) {
+      var h = hls.levels[i].height || 0;
+      if (h <= want && h > bestH) { bestH = h; best = i; }
+      if (h > 0 && h < lowH) { lowH = h; low = i; }
+    }
+    var pick = best >= 0 ? best : low;
+    if (pick >= 0) hls.nextLevel = pick;
+  }
+
   // --- Subtitle: saved tracks, online search, upload, desync offset ---
   var subSelect = document.getElementById("subSelect");
   var subStatus = document.getElementById("subStatus");
@@ -290,6 +309,25 @@
   var subTranslate = document.getElementById("subTranslate");
   var subTranslateAI = document.getElementById("subTranslateAI");
   var subBase = video.dataset.subbase || ("/api/subtitles/" + meta.anilistId + "/" + meta.episode);
+  var subPref = video.dataset.subpref || "id";
+  var subManual = false;
+  function subBucket(lang, label) {
+    var t = ((lang || "") + " " + (label || "")).toLowerCase();
+    if (t.indexOf("indones") >= 0 || t.indexOf("[id]") >= 0 || t.indexOf("indonesia") >= 0) return "id";
+    if (t.indexOf("english") >= 0 || t.indexOf("[en]") >= 0) return "en";
+    return "";
+  }
+  function applySubPref() {
+    if (subManual || subActiveId || subPref === "off") return;
+    for (var i = 0; i < subSelect.options.length; i++) {
+      var o = subSelect.options[i];
+      if (o.value && o.dataset.bucket === subPref) {
+        subSelect.value = o.value;
+        activateSub(o.value);
+        return;
+      }
+    }
+  }
   var subOffset = 0;
   var subActiveId = "";
 
@@ -339,6 +377,7 @@
       var o = document.createElement("option");
       o.value = t.id;
       o.textContent = label;
+      o.dataset.bucket = subBucket(t.lang, t.label);
       subSelect.appendChild(o);
       if (mergeSel) {
         var o2 = document.createElement("option");
@@ -353,7 +392,7 @@
   function loadSubtitles() {
     return fetch(subBase)
       .then(function (r) { return r.json(); })
-      .then(function (data) { renderSaved(data.saved); return data; })
+      .then(function (data) { renderSaved(data.saved); applySubPref(); return data; })
       .catch(function () { return null; });
   }
   function activateById(id) {
@@ -370,6 +409,16 @@
       }
     });
     subSelect.addEventListener("change", function () {
+      subManual = true;
+      var sel = subSelect.options[subSelect.selectedIndex];
+      var bucket = subSelect.value ? (sel ? sel.dataset.bucket || "" : "") : "off";
+      if (bucket) {
+        fetch("/api/prefs/sub-lang", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lang: bucket })
+        }).catch(function () {});
+      }
       activateSub(subSelect.value);
       subSay(subSelect.value ? "Subtitle aktif. Bila timing meleset, geser dengan tombol −0,5s/+0,5s." : "");
     });

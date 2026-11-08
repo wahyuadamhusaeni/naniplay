@@ -26,6 +26,9 @@ type LLMConfig struct {
 	BaseURL string // e.g. https://api.openai.com/v1
 	APIKey  string // may be empty for local endpoints
 	Model   string // e.g. gpt-4o-mini
+	// CustomPrompt, when non-empty, replaces the built-in fansub
+	// system prompt (user-editable in Settings).
+	CustomPrompt string
 }
 
 // Configured reports whether the endpoint can be used at all.
@@ -60,13 +63,22 @@ type chatResponse struct {
 	} `json:"choices"`
 }
 
+// systemPrompt returns the user's custom fansub prompt when set,
+// else the built-in one.
+func systemPrompt(cfg LLMConfig) string {
+	if strings.TrimSpace(cfg.CustomPrompt) != "" {
+		return cfg.CustomPrompt
+	}
+	return fansubSystemPrompt
+}
+
 // llmChat sends one chat completion and returns the text content.
 func llmChat(ctx context.Context, cfg LLMConfig, userPrompt string) (string, error) {
 	base := strings.TrimSuffix(strings.TrimSpace(cfg.BaseURL), "/")
 	payload, err := json.Marshal(chatRequest{
 		Model: cfg.Model,
 		Messages: []chatMessage{
-			{Role: "system", Content: fansubSystemPrompt},
+			{Role: "system", Content: systemPrompt(cfg)},
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: 0.3,

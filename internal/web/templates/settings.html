@@ -6,30 +6,71 @@
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
 
   <form method="post" action="/pengaturan" class="settings-form">
+    <h3>Pemutaran</h3>
+    <p class="dim small">Preferensi ini berlaku di semua perangkat yang membuka instance ini.</p>
+    <label for="preferred_source">Sumber utama anime</label>
+    <div class="settings-row">
+      <select id="preferred_source" name="preferred_source">
+        <option value=""{{if eq .PrefSource ""}} selected{{end}}>Otomatis (Otakudesu → HiAnime → AniChan)</option>
+        <option value="otakudesu"{{if eq .PrefSource "otakudesu"}} selected{{end}}>Otakudesu (sub Indo hardsub)</option>
+        <option value="hianime"{{if eq .PrefSource "hianime"}} selected{{end}}>HiAnime</option>
+        <option value="anichan"{{if eq .PrefSource "anichan"}} selected{{end}}>AniChan</option>
+      </select>
+    </div>
+    <label for="pref_quality">Kualitas bawaan</label>
+    <div class="settings-row">
+      <select id="pref_quality" name="pref_quality">
+        <option value=""{{if eq .PrefQuality ""}} selected{{end}}>Otomatis (terbaik yang tersedia)</option>
+        <option value="1080"{{if eq .PrefQuality "1080"}} selected{{end}}>1080p</option>
+        <option value="720"{{if eq .PrefQuality "720"}} selected{{end}}>720p</option>
+        <option value="480"{{if eq .PrefQuality "480"}} selected{{end}}>480p</option>
+        <option value="360"{{if eq .PrefQuality "360"}} selected{{end}}>360p</option>
+      </select>
+    </div>
+    <label for="pref_sub_lang">Bahasa subtitle bawaan</label>
+    <div class="settings-row">
+      <select id="pref_sub_lang" name="pref_sub_lang">
+        <option value="id"{{if eq .PrefSubLang "id"}} selected{{end}}>Indonesia</option>
+        <option value="en"{{if eq .PrefSubLang "en"}} selected{{end}}>Inggris</option>
+        <option value="off"{{if eq .PrefSubLang "off"}} selected{{end}}>Mati (tanpa subtitle)</option>
+      </select>
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+    <p class="dim small">Pilihan trek subtitle yang kamu buat di pemutar juga tersimpan otomatis sebagai bahasa bawaan.</p>
+  </form>
+
+  <form method="post" action="/pengaturan" class="settings-form">
     <label for="otakudesu_base">Domain sumber Otakudesu</label>
     <p class="dim small">Sumber streaming kadang berpindah domain. Jika putar berhenti bekerja, isi domain terbarunya di sini — tanpa perlu memasang ulang aplikasi. Kosongkan untuk kembali ke bawaan.</p>
     <div class="settings-row">
       <input type="url" id="otakudesu_base" name="otakudesu_base" value="{{.OtakuBase}}" placeholder="https://ww2.otakudesu.biz">
+      <button class="btn" type="button" data-test="otakudesu" data-input="otakudesu_base">Tes</button>
     </div>
+    <p class="test-note dim small" id="test-otakudesu"></p>
     <label for="hianime_base">Domain sumber HiAnime</label>
     <div class="settings-row">
       <input type="url" id="hianime_base" name="hianime_base" value="{{.HiBase}}" placeholder="https://hianime.at">
+      <button class="btn" type="button" data-test="hianime" data-input="hianime_base">Tes</button>
       <button class="btn btn-play" type="submit">Simpan</button>
     </div>
+    <p class="test-note dim small" id="test-hianime"></p>
   </form>
 
   <form method="post" action="/pengaturan" class="settings-form">
     <label>AI Fansub (BYOK) — opsional</label>
-    <p class="dim small">Terjemahkan subtitle dengan model AI pilihanmu lewat endpoint apa pun yang kompatibel dengan OpenAI — OpenAI, OpenRouter, Gemini, Groq, Ollama lokal, atau routermu sendiri (mis. 9router). Hasilnya jauh lebih alami daripada terjemahan mesin. Kunci API hanya disimpan di database NaniPlay di perangkat ini.</p>
+    <p class="dim small">Terjemahkan subtitle dengan model AI pilihanmu lewat endpoint apa pun yang kompatibel dengan OpenAI — OpenAI, OpenRouter, Gemini, Groq, Ollama lokal, atau routermu sendiri (mis. 9router). Hasilnya jauh lebih alami daripada terjemahan mesin. Kunci API hanya disimpan di database NaniPlay di perangkat ini. <strong>Tips:</strong> tempel kunci Gemini (AIza…), Groq (gsk_…), atau OpenAI (sk-…) dengan alamat &amp; model kosong — sisanya terisi otomatis.</p>
     <div class="settings-stack">
-      <input type="url" name="llm_base" value="{{.LLMBase}}" placeholder="Alamat endpoint, mis. https://api.openai.com/v1">
+      <input type="url" id="llm_base" name="llm_base" value="{{.LLMBase}}" placeholder="Alamat endpoint, mis. https://api.openai.com/v1">
       <input type="text" name="llm_model" value="{{.LLMModel}}" placeholder="Nama model, mis. gpt-4o-mini">
-      <input type="password" name="llm_key" placeholder="{{if .LLMKeySet}}Kunci API tersimpan — kosongkan untuk mempertahankan{{else}}Kunci API (boleh kosong untuk endpoint lokal){{end}}" autocomplete="off">
+      <input type="password" id="llm_key" name="llm_key" placeholder="{{if .LLMKeySet}}Kunci API tersimpan — kosongkan untuk mempertahankan{{else}}Kunci API (boleh kosong untuk endpoint lokal){{end}}" autocomplete="off">
       {{if .LLMKeySet}}<label class="checkline"><input type="checkbox" name="llm_key_clear" value="1"> Hapus kunci API yang tersimpan</label>{{end}}
+      <textarea name="llm_prompt" rows="4" placeholder="Prompt sistem Fansub AI (kosongkan untuk prompt bawaan)">{{.LLMPrompt}}</textarea>
     </div>
     <div class="settings-row">
+      <button class="btn" type="button" data-test="llm" data-input="llm_base">Tes</button>
       <button class="btn btn-play" type="submit">Simpan</button>
     </div>
+    <p class="test-note dim small" id="test-llm"></p>
   </form>
 
   <form method="post" action="/pengaturan" class="settings-form">
@@ -39,12 +80,14 @@
       Aktifkan seksi Film &amp; Series
     </label>
     <label>Alamat basis IDLIX
-      <input type="url" name="idlix_base" value="{{.IdlixBase}}" placeholder="https://z2.idlixku.com">
+      <input type="url" id="idlix_base" name="idlix_base" value="{{.IdlixBase}}" placeholder="https://z2.idlixku.com">
     </label>
-    <p class="dim small">Katalog film &amp; series tiba bertahap mulai v0.10.0; mengaktifkan ini menampilkan seksinya di menu. Alamat dapat diganti bila domain IDLIX berpindah.</p>
+    <p class="dim small">Katalog film &amp; series dari IDLIX. Alamat dapat diganti bila domain IDLIX berpindah.</p>
     <div class="settings-row">
+      <button class="btn" type="button" data-test="idlix" data-input="idlix_base">Tes</button>
       <button class="btn btn-play" type="submit">Simpan</button>
     </div>
+    <p class="test-note dim small" id="test-idlix"></p>
   </form>
 
   <div class="settings-card">
@@ -53,4 +96,23 @@
     {{if .Update}}<p class="update-note">Ada versi baru! Unduh di <a href="https://github.com/wahyuadamhusaeni/naniplay/releases/latest">halaman rilis NaniPlay</a>.</p>{{end}}
   </div>
 </section>
+<script>
+document.querySelectorAll("[data-test]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var target = btn.dataset.test;
+    var input = document.getElementById(btn.dataset.input);
+    var note = document.getElementById("test-" + target);
+    if (!input || !note) return;
+    var keyEl = document.getElementById("llm_key");
+    note.textContent = "Menguji…";
+    fetch("/api/settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target: target, base: input.value, key: keyEl ? keyEl.value : "" })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      note.textContent = (d.ok ? "✓ " : "✗ ") + (d.note || "") + (d.ms ? " · " + d.ms + " md" : "");
+    }).catch(function () { note.textContent = "✗ Pengujian gagal."; });
+  });
+});
+</script>
 {{end}}

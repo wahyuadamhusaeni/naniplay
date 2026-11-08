@@ -312,26 +312,28 @@ func (s *Server) seriesDetailPage(w http.ResponseWriter, r *http.Request) {
 
 type cinemaWatchData struct {
 	baseData
-	Key      string
-	Title    string
-	Sub      string
-	Poster   string
-	Back     string
-	BackText string
-	ProxyURL string
-	Episode  int // encoded (series: season*1000+episode; movie: 1)
-	SavedPos float64
-	Next     string
-	Prev     string
-	Server   string
-	Err      string
+	PrefQuality string
+	PrefSubLang string
+	Key         string
+	Title       string
+	Sub         string
+	Poster      string
+	Back        string
+	BackText    string
+	ProxyURL    string
+	Episode     int // encoded (series: season*1000+episode; movie: 1)
+	SavedPos    float64
+	Next        string
+	Prev        string
+	Server      string
+	Err         string
 }
 
 // playCinema resolves the stream (the provider gate takes ~15 s)
 // and renders the shared player for one movie or episode.
 func (s *Server) playCinema(w http.ResponseWriter, r *http.Request, key string, encEp int, title, sub, poster, back, backText, ctype, contentID, next, prev string) {
 	data := cinemaWatchData{
-		baseData: s.base(), Key: key, Title: title, Sub: sub, Poster: poster,
+		baseData: s.base(), PrefQuality: s.qualityPref(), PrefSubLang: s.subPref(), Key: key, Title: title, Sub: sub, Poster: poster,
 		Back: back, BackText: backText, Episode: encEp, Next: next, Prev: prev,
 		Server: "IDLIX",
 	}

@@ -156,6 +156,8 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("POST /api/history", s.apiSaveHistory)
 	mux.HandleFunc("GET /api/history/{id}/{ep}", s.apiGetHistory)
+	mux.HandleFunc("POST /api/prefs/sub-lang", s.apiPrefSubLang)
+	mux.HandleFunc("POST /api/settings/test", s.apiSettingsTest)
 	mux.HandleFunc("GET /api/skiptimes/{id}/{ep}", s.apiSkipTimes)
 	mux.HandleFunc("GET /api/subtitles/{id}/{ep}", s.apiSubtitleList)
 	mux.HandleFunc("GET /api/subtitles/k/{key}/{ep}", s.apiSubtitleList)
@@ -397,11 +399,34 @@ func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime, forced str
 		}
 		return false
 	}
-	_ = try(s.otaku.Name(), func() (*source.Series, []source.Episode, error) { return s.otaku.Match(ctx, titles, a.Episodes) }) ||
-		try(s.hi.Name(), func() (*source.Series, []source.Episode, error) { return s.hi.Match(ctx, titles, a.Episodes) }) ||
-		try(s.ani.Name(), func() (*source.Series, []source.Episode, error) {
+	type attempt struct {
+		name string
+		fn   func() (*source.Series, []source.Episode, error)
+	}
+	attempts := []attempt{
+		{s.otaku.Name(), func() (*source.Series, []source.Episode, error) { return s.otaku.Match(ctx, titles, a.Episodes) }},
+		{s.hi.Name(), func() (*source.Series, []source.Episode, error) { return s.hi.Match(ctx, titles, a.Episodes) }},
+		{s.ani.Name(), func() (*source.Series, []source.Episode, error) {
 			return s.ani.Lookup(ctx, a.ID, a.Title.Romaji, a.Episodes)
-		})
+		}},
+	}
+	// The user's preferred source (Settings) goes first; the rest of
+	// the chain still applies as fallback.
+	if forced == "" {
+		if pref := validSrc(s.db.GetSetting("preferred_source")); pref != "" {
+			for i, at := range attempts {
+				if at.name == pref && i > 0 {
+					copy(attempts[1:i+1], attempts[0:i])
+					attempts[0] = at
+				}
+			}
+		}
+	}
+	for _, at := range attempts {
+		if try(at.name, at.fn) {
+			break
+		}
+	}
 	if series == nil {
 		return nil, nil, ""
 	}
@@ -438,6 +463,8 @@ func providerDisplay(id string) string {
 
 type watchData struct {
 	baseData
+	PrefQuality  string
+	PrefSubLang  string
 	Anime        *anilist.Anime
 	Episode      int
 	CurrentEp    int
@@ -468,12 +495,14 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 	}
 	forced := validSrc(r.URL.Query().Get("src"))
 	data := watchData{
-		baseData:  s.base(),
-		Anime:     a,
-		Episode:   ep,
-		CurrentEp: ep,
-		SrcSel:    forced,
-		PagePath:  fmt.Sprintf("/watch/%d/%d", id, ep),
+		baseData:    s.base(),
+		PrefQuality: s.qualityPref(),
+		PrefSubLang: s.subPref(),
+		Anime:       a,
+		Episode:     ep,
+		CurrentEp:   ep,
+		SrcSel:      forced,
+		PagePath:    fmt.Sprintf("/watch/%d/%d", id, ep),
 	}
 	if watched, err := s.db.EpisodeProgress(store.AnimeKey(id)); err == nil {
 		data.Watched = watched
@@ -855,39 +884,180 @@ type settingsData struct {
 	LLMBase   string
 	LLMModel  string
 	LLMKeySet bool
-	Version   string
-	Latest    string
-	Update    bool
-	Saved     bool
-	Err       string
+	// Playback preferences (Tatap-style settings).
+	PrefSource  string
+	PrefQuality string
+	PrefSubLang string
+	LLMPrompt   string
+	Version     string
+	Latest      string
+	Update      bool
+	Saved       bool
+	Err         string
 }
 
 // llmConfig reads the saved AI fansub (BYOK) endpoint settings.
 func (s *Server) llmConfig() subtitle.LLMConfig {
 	return subtitle.LLMConfig{
-		BaseURL: s.db.GetSetting("llm_base"),
-		APIKey:  s.db.GetSetting("llm_key"),
-		Model:   s.db.GetSetting("llm_model"),
+		BaseURL:      s.db.GetSetting("llm_base"),
+		APIKey:       s.db.GetSetting("llm_key"),
+		CustomPrompt: s.db.GetSetting("llm_prompt"),
+		Model:        s.db.GetSetting("llm_model"),
 	}
 }
 
 func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	latest := s.latestRelease(r.Context())
 	data := settingsData{
-		baseData:  s.base(),
-		OtakuBase: s.otaku.Base(),
-		HiBase:    s.hi.Base(),
-		IdlixBase: s.idlixBase,
-		IdlixOn:   s.idlixEnabled(),
-		LLMBase:   s.db.GetSetting("llm_base"),
-		LLMModel:  s.db.GetSetting("llm_model"),
-		LLMKeySet: s.db.GetSetting("llm_key") != "",
-		Version:   Version,
-		Latest:    latest,
-		Update:    latest != "" && latest != "v"+Version,
-		Saved:     r.URL.Query().Get("saved") == "1",
+		baseData:    s.base(),
+		OtakuBase:   s.otaku.Base(),
+		HiBase:      s.hi.Base(),
+		IdlixBase:   s.idlixBase,
+		IdlixOn:     s.idlixEnabled(),
+		LLMBase:     s.db.GetSetting("llm_base"),
+		LLMModel:    s.db.GetSetting("llm_model"),
+		LLMKeySet:   s.db.GetSetting("llm_key") != "",
+		PrefSource:  s.db.GetSetting("preferred_source"),
+		PrefQuality: s.db.GetSetting("pref_quality"),
+		PrefSubLang: s.subPref(),
+		LLMPrompt:   s.db.GetSetting("llm_prompt"),
+		Version:     Version,
+		Latest:      latest,
+		Update:      latest != "" && latest != "v"+Version,
+		Saved:       r.URL.Query().Get("saved") == "1",
 	}
 	s.render(w, "settings", data)
+}
+
+// subPref returns the effective subtitle-language preference:
+// the saved value, defaulting to Indonesian for this audience.
+func (s *Server) subPref() string {
+	v := s.db.GetSetting("pref_sub_lang")
+	if v == "" {
+		return "id"
+	}
+	return v
+}
+
+// qualityPref returns the saved default quality ("" or "1080" etc).
+func (s *Server) qualityPref() string { return s.db.GetSetting("pref_quality") }
+
+// apiPrefSubLang records the subtitle language the user picked in
+// the player, Tatap-style: the choice is learned and re-applied on
+// the next episode.
+func (s *Server) apiPrefSubLang(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Lang string `json:"lang"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "permintaan tidak valid"})
+		return
+	}
+	switch body.Lang {
+	case "id", "en", "off":
+		_ = s.db.SetSetting("pref_sub_lang", body.Lang)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "bahasa tidak dikenal"})
+	}
+}
+
+// detectLLMProvider guesses an OpenAI-compatible base URL and a
+// sensible default model from an API key's shape (Gemini "AIza…",
+// Groq "gsk_…", OpenAI "sk-…"), Tatap-style: paste a key and the
+// rest fills itself in. Empty results mean "unknown key".
+func detectLLMProvider(key string) (base, model string) {
+	switch {
+	case strings.HasPrefix(key, "AIza"):
+		return "https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.0-flash"
+	case strings.HasPrefix(key, "gsk_"):
+		return "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"
+	case strings.HasPrefix(key, "sk-"):
+		return "https://api.openai.com/v1", "gpt-4o-mini"
+	}
+	return "", ""
+}
+
+// apiSettingsTest probes a source/AI endpoint so the user can verify
+// an address before relying on it (the idlix-androidtv settings
+// screen's "Test Connection", generalized to every URL we store).
+func (s *Server) apiSettingsTest(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Target string `json:"target"`
+		Base   string `json:"base"`
+		Key    string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "note": "permintaan tidak valid"})
+		return
+	}
+	base := strings.TrimSpace(body.Base)
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	start := time.Now()
+	note := ""
+	ok := false
+	switch body.Target {
+	case "idlix":
+		cli, err := idlix.New(base)
+		if err == nil {
+			_, err = cli.Genres(ctx)
+		}
+		if err != nil {
+			note = "IDLIX tidak menjawab: " + err.Error()
+		} else {
+			ok, note = true, "API IDLIX menjawab normal"
+		}
+	case "llm":
+		key := strings.TrimSpace(body.Key)
+		if key == "" {
+			key = s.db.GetSetting("llm_key")
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(base, "/")+"/models", nil)
+		if err == nil {
+			if key != "" {
+				req.Header.Set("Authorization", "Bearer "+key)
+			}
+			var resp *http.Response
+			resp, err = http.DefaultClient.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				switch {
+				case resp.StatusCode == http.StatusOK:
+					ok, note = true, "Endpoint AI menjawab (daftar model terbaca)"
+				case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+					note = "Endpoint menjawab tetapi kunci ditolak (HTTP " + resp.Status + ")"
+				default:
+					note = "Endpoint menjawab HTTP " + resp.Status
+				}
+			}
+		}
+		if err != nil {
+			note = "Tidak terjangkau: " + err.Error()
+		}
+	case "otakudesu", "hianime":
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base, nil)
+		if err == nil {
+			req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+			var resp *http.Response
+			resp, err = http.DefaultClient.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				ok = true
+				note = "Terjangkau (HTTP " + resp.Status + ")"
+				if resp.StatusCode == http.StatusForbidden {
+					note += " — mungkin dibatasi Cloudflare dari jaringan ini"
+				}
+			}
+		}
+		if err != nil {
+			note = "Tidak terjangkau: " + err.Error()
+		}
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "note": "target tidak dikenal"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": ok, "ms": time.Since(start).Milliseconds(), "note": note})
 }
 
 func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
@@ -928,6 +1098,18 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		s.episodes = map[string][]source.Episode{}
 		s.mu.Unlock()
 	}
+	if _, present := r.Form["preferred_source"]; present {
+		// Playback preferences.
+		_ = s.db.SetSetting("preferred_source", validSrc(r.FormValue("preferred_source")))
+		switch q := r.FormValue("pref_quality"); q {
+		case "", "1080", "720", "480", "360":
+			_ = s.db.SetSetting("pref_quality", q)
+		}
+		switch l := r.FormValue("pref_sub_lang"); l {
+		case "id", "en", "off":
+			_ = s.db.SetSetting("pref_sub_lang", l)
+		}
+	}
 	if _, present := r.Form["llm_base"]; present {
 		// AI fansub (BYOK) endpoint settings. The API key is only
 		// overwritten when a new one is typed; an empty field keeps
@@ -939,12 +1121,25 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 			s.render(w, "settings", data)
 			return
 		}
+		llmModel := strings.TrimSpace(r.FormValue("llm_model"))
+		newKey := strings.TrimSpace(r.FormValue("llm_key"))
+		// Tatap-style convenience: a freshly pasted key whose
+		// provider is recognizable fills in any empty base/model.
+		if newKey != "" && llmBase == "" {
+			if dBase, dModel := detectLLMProvider(newKey); dBase != "" {
+				llmBase = dBase
+				if llmModel == "" {
+					llmModel = dModel
+				}
+			}
+		}
 		_ = s.db.SetSetting("llm_base", llmBase)
-		_ = s.db.SetSetting("llm_model", strings.TrimSpace(r.FormValue("llm_model")))
+		_ = s.db.SetSetting("llm_model", llmModel)
+		_ = s.db.SetSetting("llm_prompt", strings.TrimSpace(r.FormValue("llm_prompt")))
 		if r.FormValue("llm_key_clear") == "1" {
 			_ = s.db.SetSetting("llm_key", "")
-		} else if key := strings.TrimSpace(r.FormValue("llm_key")); key != "" {
-			_ = s.db.SetSetting("llm_key", key)
+		} else if newKey != "" {
+			_ = s.db.SetSetting("llm_key", newKey)
 		}
 	}
 	if _, present := r.Form["idlix_base"]; present {

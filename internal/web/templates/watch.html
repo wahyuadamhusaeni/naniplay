@@ -9,7 +9,7 @@
     <div class="alert">{{.SourceErr}}</div>
   {{else}}
   <div class="player-box" id="playerBox">
-    <video id="player" playsinline poster="{{.Anime.Banner}}"
+    <video id="player" playsinline data-quality="{{.PrefQuality}}" data-subpref="{{.PrefSubLang}}" poster="{{.Anime.Banner}}"
       data-src="{{.ProxyURL}}"
       data-anilist="{{.Anime.ID}}" data-key="anime:{{.Anime.ID}}"
       data-mal="{{.Anime.IDMal}}"
@@ -89,6 +89,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=10000"></script>
-<script src="/static/picker.js?v=10000"></script>
+<script src="/static/player.js?v=11000"></script>
+<script src="/static/picker.js?v=11000"></script>
 {{end}}
