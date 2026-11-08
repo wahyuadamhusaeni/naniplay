@@ -2,17 +2,22 @@ package web
 
 // Film Indo section (v1.8.0): Indonesian movies & series scraped
 // from a KitaNonton deployment. Catalog/detail/play pages mirror the
-// IDLIX cinema sections, but playback is different: the JuicyCodes
-// CDN binds its identity token to the VIEWER's IP + User-Agent, so
-// the server resolves the embed and hands the browser a master URL
-// signed for the viewer; playlist and segments then flow directly
-// from the CDN to the viewer's device (player.js re-applies the
-// token to child requests via hls.js xhrSetup).
+// IDLIX cinema sections, but playback is proxied through the server
+// (v1.8.1): the JuicyCodes CDN pins its CORS allowance to the embed
+// origin and its identity token is bound to the fetcher, so a
+// browser on this site can never read the stream directly. The
+// server resolves the embed, signs requests with its OWN identity
+// (egress IP + fetcher UA), fetches playlist and segments with the
+// TLS-fingerprint client, and rewrites playlists so the browser
+// only ever talks to NaniPlay — the same posture as IDLIX playback.
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -274,9 +279,91 @@ func (s *Server) playIndo(w http.ResponseWriter, r *http.Request, slug string, s
 		s.render(w, "cinemawatch", data)
 		return
 	}
-	ip := clientIP(r)
-	ua := r.UserAgent()
-	data.ProxyURL = kitanonton.SignForViewer(stream.MasterURL, ip, ua)
-	data.CdnToken = kitanonton.MintToken(ip, ua)
+	data.ProxyURL = "/api/indo-proxy?u=" + url.QueryEscape(stream.MasterURL) + "&r=" + url.QueryEscape(chosen.URL)
 	s.render(w, "cinemawatch", data)
+}
+
+// indoProxy serves one JuicyCodes CDN resource (master/variant
+// playlist or segment) through the server: it signs the URL with the
+// server's identity token, fetches it with the fingerprint client
+// and the embed page as referer, rewrites playlists so children come
+// back through this endpoint, and streams everything else through.
+// Only groovy.monster hosts (the JuicyCodes CDN) are allowed.
+func (s *Server) indoProxy(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("u")
+	referer := r.URL.Query().Get("r")
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || !strings.HasSuffix(u.Host, ".groovy.monster") {
+		http.Error(w, "URL tidak diizinkan", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	signed := s.kita.SignForServer(ctx, raw)
+	status, ctype, body, err := s.kita.FetchStream(ctx, signed, referer, r.Header.Get("Range"))
+	if err != nil {
+		http.Error(w, "Stream tidak terjangkau: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer body.Close()
+	br := bufio.NewReader(body)
+	isPlaylist := strings.Contains(ctype, "mpegurl")
+	if !isPlaylist {
+		if head, err := br.Peek(7); err == nil && string(head) == "#EXTM3U" {
+			isPlaylist = true
+		}
+	}
+	if isPlaylist {
+		b, err := io.ReadAll(io.LimitReader(br, 4<<20))
+		if err != nil {
+			http.Error(w, "Playlist tidak terbaca", http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(rewriteIndoPlaylist(string(b), signed, referer)))
+		return
+	}
+	if ctype != "" {
+		w.Header().Set("Content-Type", ctype)
+	}
+	w.WriteHeader(status)
+	_, _ = io.Copy(w, br)
+}
+
+// rewriteIndoPlaylist points every child URL of a JuicyCodes
+// playlist back at /api/indo-proxy. The handler re-signs each child
+// request itself, so no token is embedded in the rewritten URLs.
+func rewriteIndoPlaylist(body, base, referer string) string {
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return body
+	}
+	wrap := func(child string) string {
+		cu, err := url.Parse(child)
+		if err != nil {
+			return child
+		}
+		abs := baseURL.ResolveReference(cu).String()
+		return "/api/indo-proxy?u=" + url.QueryEscape(abs) + "&r=" + url.QueryEscape(referer)
+	}
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		trim := strings.TrimSpace(line)
+		if trim == "" {
+			continue
+		}
+		if strings.HasPrefix(trim, "#") {
+			if idx := strings.Index(trim, `URI="`); idx >= 0 {
+				rest := trim[idx+5:]
+				if end := strings.Index(rest, `"`); end >= 0 {
+					lines[i] = strings.Replace(line, `URI="`+rest[:end]+`"`, `URI="`+wrap(rest[:end])+`"`, 1)
+				}
+			}
+			continue
+		}
+		lines[i] = wrap(trim)
+	}
+	return strings.Join(lines, "\n")
 }

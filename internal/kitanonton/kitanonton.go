@@ -14,7 +14,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -68,6 +70,53 @@ func newTLSFetcher() (tlsFetcher, error) {
 		return tlsFetcher{}, err
 	}
 	return tlsFetcher{client: c}, nil
+}
+
+// FetchStream GETs a CDN resource (playlist or segment) with the
+// full browser header set the JuicyCodes CDN expects, including an
+// Origin matching the embed page. The caller owns the returned body.
+func (f tlsFetcher) FetchStream(ctx context.Context, rawURL, referer, rangeHeader string) (int, string, io.ReadCloser, error) {
+	req, err := http2.NewRequestWithContext(ctx, http2.MethodGet, rawURL, nil)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	origin := ""
+	if u, err := url.Parse(referer); err == nil && u.Host != "" {
+		origin = u.Scheme + "://" + u.Host
+	}
+	h := http2.Header{
+		"user-agent":         {userAgent},
+		"accept":             {"*/*"},
+		"referer":            {referer},
+		http2.HeaderOrderKey: {"user-agent", "accept", "referer"},
+	}
+	if origin != "" {
+		h = http2.Header{
+			"user-agent":         {userAgent},
+			"accept":             {"*/*"},
+			"accept-language":    {"id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7"},
+			"accept-encoding":    {"gzip, deflate, br, zstd"},
+			"origin":             {origin},
+			"referer":            {referer},
+			"sec-ch-ua":          {`"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`},
+			"sec-ch-ua-mobile":   {"?0"},
+			"sec-ch-ua-platform": {`"Windows"`},
+			"sec-fetch-dest":     {"empty"},
+			"sec-fetch-mode":     {"cors"},
+			"sec-fetch-site":     {"cross-site"},
+			"priority":           {"u=1, i"},
+			http2.HeaderOrderKey: {"user-agent", "accept", "accept-language", "accept-encoding", "origin", "referer", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform", "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site", "priority"},
+		}
+	}
+	if rangeHeader != "" {
+		h.Set("range", rangeHeader)
+	}
+	req.Header = h
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return 0, "", nil, err
+	}
+	return resp.StatusCode, resp.Header.Get("Content-Type"), resp.Body, nil
 }
 
 func (f tlsFetcher) Get(ctx context.Context, url string) (int, []byte, error) {
@@ -137,12 +186,15 @@ type cacheEntry struct {
 
 // Client talks to one KitaNonton deployment.
 type Client struct {
-	base  string
-	site  Fetcher
-	embed Fetcher
+	base     string
+	site     Fetcher
+	embed    Fetcher
+	embedTLS tlsFetcher
 
-	mu    sync.Mutex
-	cache map[string]cacheEntry
+	mu       sync.Mutex
+	cache    map[string]cacheEntry
+	egressIP string
+	egressAt time.Time
 }
 
 // New builds a Client for a base URL like https://kitanonton2.garden.
@@ -156,10 +208,11 @@ func New(base string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		base:  base,
-		site:  plainFetcher{client: &http.Client{Timeout: 30 * time.Second}},
-		embed: emb,
-		cache: map[string]cacheEntry{},
+		base:     base,
+		site:     plainFetcher{client: &http.Client{Timeout: 30 * time.Second}},
+		embed:    emb,
+		embedTLS: emb,
+		cache:    map[string]cacheEntry{},
 	}, nil
 }
 
@@ -287,6 +340,50 @@ func (c *Client) Resolve(ctx context.Context, embedURL string) (*Stream, error) 
 		return nil, fmt.Errorf("kitanonton: embed membalas %d", status)
 	}
 	return parseEmbed(string(body))
+}
+
+// EgressIP reports this server's public IP as the CDN sees it,
+// discovered lazily through the embed fetcher and cached for an
+// hour. The identity token must name THIS IP when the server itself
+// fetches the stream (proxy mode).
+func (c *Client) EgressIP(ctx context.Context) (string, error) {
+	c.mu.Lock()
+	if c.egressIP != "" && time.Since(c.egressAt) < time.Hour {
+		ip := c.egressIP
+		c.mu.Unlock()
+		return ip, nil
+	}
+	c.mu.Unlock()
+	_, body, err := c.embed.Get(ctx, "https://api.ipify.org")
+	if err != nil {
+		return "", err
+	}
+	ip := strings.TrimSpace(string(body))
+	if net.ParseIP(ip) == nil {
+		return "", fmt.Errorf("kitanonton: egress tidak dikenal (%q)", ip)
+	}
+	c.mu.Lock()
+	c.egressIP, c.egressAt = ip, time.Now()
+	c.mu.Unlock()
+	return ip, nil
+}
+
+// SignForServer signs a master/playlist URL with THIS server's
+// identity token (its egress IP + its fetcher's User-Agent), for use
+// when the server fetches the stream itself and proxies it to the
+// viewer. If the egress IP cannot be determined the URL is returned
+// unchanged.
+func (c *Client) SignForServer(ctx context.Context, rawURL string) string {
+	ip, err := c.EgressIP(ctx)
+	if err != nil || ip == "" {
+		return rawURL
+	}
+	return SignForViewer(rawURL, ip, userAgent)
+}
+
+// FetchStream proxies one CDN resource through the embed fetcher.
+func (c *Client) FetchStream(ctx context.Context, rawURL, referer, rangeHeader string) (int, string, io.ReadCloser, error) {
+	return c.embedTLS.FetchStream(ctx, rawURL, referer, rangeHeader)
 }
 
 // MintToken builds the JuicyCodes identity token: the CDN's

@@ -168,6 +168,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /film-indo/{slug}/putar", s.indoWatchMovie)
 	mux.HandleFunc("GET /series-indo/{slug}", s.indoSeriesDetail)
 	mux.HandleFunc("GET /series-indo/{slug}/putar/{episode}", s.indoWatchSeries)
+	mux.HandleFunc("GET /api/indo-proxy", s.indoProxy)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
 	mux.HandleFunc("GET /pengaturan", s.settingsPage)

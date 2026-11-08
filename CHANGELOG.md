@@ -4,6 +4,18 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.8.1] — 2026-11-08
+
+### Diubah
+- **Putar Film Indo kini lewat proxy server** (bukan lagi langsung
+  dari CDN ke browser): CDN JuicyCodes memasang izin CORS-nya ke
+  origin embed dan token identitasnya terikat pada pengambil, jadi
+  browser di situs lain tidak akan pernah bisa membaca stream-nya.
+  Server kini mengambil master/varian/segmen sendiri (klien sidik
+  jari TLS + referer embed, token identitas server), menulis ulang
+  playlist ke `/api/indo-proxy`, dan browser hanya berbicara ke
+  NaniPlay — postur yang sama dengan putar IDLIX.
+
 ## [1.8.0] — 2026-11-08
 
 ### Ditambahkan
