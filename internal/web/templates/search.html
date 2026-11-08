@@ -1,0 +1,15 @@
+{{define "title"}}Cari — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <form class="big-search" action="/search" method="get">
+    <input type="search" name="q" value="{{.Query}}" placeholder="Cari anime… (mis. Frieren)" autofocus>
+    <button class="btn btn-play" type="submit">Cari</button>
+  </form>
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  {{if .Query}}<h2 class="page-h">Hasil untuk “{{.Query}}”</h2>{{end}}
+  <div class="grid">
+    {{range .Results}}{{template "card" .}}{{end}}
+  </div>
+  {{if and .Query (not .Results) (not .Err)}}<p class="dim">Tidak ada hasil. Coba judul lain (judul Inggris/Romaji bekerja paling baik).</p>{{end}}
+</section>
+{{end}}
