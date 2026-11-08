@@ -99,7 +99,7 @@ func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) 
 		matches:   map[string]matchEntry{},
 		episodes:  map[string][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail", "cinemawatch"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail", "cinemawatch", "genrecinema"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
@@ -140,6 +140,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /watch/{id}/{ep}", s.watch)
 	mux.HandleFunc("GET /search", s.searchPage)
 	mux.HandleFunc("GET /genre", s.genreIndex)
+	mux.HandleFunc("GET /genre-sinema", s.cinemaGenreIndex)
 	mux.HandleFunc("GET /genre/{name}", s.genrePage)
 	mux.HandleFunc("GET /jadwal", s.schedulePage)
 	mux.HandleFunc("GET /film", s.filmPage)
@@ -197,8 +198,21 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 // ---------- pages ----------
 
+// heroSlide is one entry of the mixed home hero rotation (anime,
+// movies, series side by side since v0.12.0).
+type heroSlide struct {
+	Kicker string
+	Title  string
+	Meta   string
+	Desc   string
+	Image  string
+	Href   string
+	Play   string
+}
+
 type homeData struct {
 	baseData
+	Slides     []heroSlide
 	Hero       *anilist.Anime
 	Trending   []anilist.Anime
 	Season     []anilist.Anime
@@ -243,14 +257,30 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if favs, err := s.db.Favorites(); err == nil {
 		data.Favorites = favViews(favs)
 	}
+	var topMovie *idlix.MovieItem
+	var topSeries *idlix.SeriesItem
 	if s.idlixEnabled() {
 		if items, _, err := s.idlix.Movies(ctx, 1, 12, "popularity", ""); err == nil {
 			data.CinemaFilm = movieCards(items)
+			if len(items) > 0 {
+				topMovie = &items[0]
+			}
 		}
 		if items, _, err := s.idlix.SeriesList(ctx, 1, 12, "popularity", ""); err == nil {
 			data.CinemaSeri = seriesCards(items)
+			if len(items) > 0 {
+				topSeries = &items[0]
+			}
 		}
 	}
+	data.Slides = buildHeroSlides(data.Hero, topMovie, topSeries, func(slug string) string {
+		sd, err := s.idlix.SeriesDetail(ctx, slug)
+		if err == nil && sd != nil && sd.DefaultSeason != nil && len(sd.DefaultSeason.Episodes) > 0 {
+			ep := sd.DefaultSeason.Episodes[0]
+			return "/series/" + slug + "/putar/" + strconv.Itoa(sd.DefaultSeason.SeasonNumber) + "/" + strconv.Itoa(ep.EpisodeNumber)
+		}
+		return "/series/" + slug
+	})
 	s.render(w, "home", data)
 }
 
@@ -501,9 +531,12 @@ func proxyURLFor(st *source.Stream) string {
 
 type searchData struct {
 	baseData
-	Query   string
-	Results []anilist.Anime
-	Err     string
+	Query      string
+	Results    []anilist.Anime
+	Err        string
+	CinemaFilm []cinemaCard
+	CinemaSeri []cinemaCard
+	CinemaNote string
 }
 
 type genreIndexData struct {
@@ -571,6 +604,23 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 			data.Err = err.Error()
 		} else {
 			data.Results = res
+		}
+		if s.idlixEnabled() {
+			results, _, err := s.idlix.Search(r.Context(), q)
+			if err != nil {
+				data.CinemaNote = cinemaErr(err)
+			} else {
+				var films, series []idlix.SearchResult
+				for _, it := range results {
+					if it.IsSeries() {
+						series = append(series, it)
+					} else {
+						films = append(films, it)
+					}
+				}
+				data.CinemaFilm = resultCards(films)
+				data.CinemaSeri = resultCards(series)
+			}
 		}
 	}
 	s.render(w, "search", data)

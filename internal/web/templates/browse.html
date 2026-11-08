@@ -16,6 +16,7 @@
   <p class="genres cinema-genres">
     <a class="chip chip-link{{if not .Genre}} chip-active{{end}}" href="{{.Path}}">Semua</a>
     {{range .Genres}}<a class="chip chip-link{{if eq $.Genre .Slug}} chip-active{{end}}" href="{{$.Path}}?genre={{.Slug}}">{{.Name}}</a>{{end}}
+    <a class="chip chip-link" href="/genre-sinema">Semua genre →</a>
   </p>
   {{end}}
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}

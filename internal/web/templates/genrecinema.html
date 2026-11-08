@@ -1,0 +1,16 @@
+{{define "title"}}Genre Film & Series — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">🎬 Genre Film & Series</h2>
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  <div class="genre-grid">
+    {{range .Genres}}
+    <div class="genre-tile genre-tile-split">
+      <span class="genre-tile-name">{{.Name}}</span>
+      <span class="genre-tile-links"><a href="/film?genre={{.Slug}}">Film</a> · <a href="/series?genre={{.Slug}}">Series</a></span>
+    </div>
+    {{end}}
+  </div>
+  {{if not .Genres}}{{if not .Err}}<p class="dim">Genre belum tersedia.</p>{{end}}{{end}}
+</section>
+{{end}}

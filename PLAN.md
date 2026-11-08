@@ -118,8 +118,8 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v0.12.0 — Satu beranda, satu pencarian
 
-- [ ] Pencarian gabungan (anime + film + series dalam satu hasil)
-- [ ] Hero & rail campuran di beranda; halaman genre film
+- [x] Pencarian gabungan (anime + film + series dalam satu hasil) *(v0.12.0)*
+- [x] Hero & rail campuran di beranda; halaman genre film *(v0.12.0)*
 
 ### v1.0.0 — Mode TV & penyempurnaan
 

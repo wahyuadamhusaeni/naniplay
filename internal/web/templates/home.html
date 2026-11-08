@@ -2,25 +2,29 @@
 {{define "content"}}
 {{if .Err}}<div class="alert">Gagal memuat katalog: {{.Err}}</div>{{end}}
 
-{{with .Hero}}
-<section class="hero" style="background-image:url('{{if .Banner}}{{.Banner}}{{else}}{{.Cover}}{{end}}')">
+{{if .Slides}}
+<div class="hero-slider" id="heroSlider">
+{{range $i, $sl := .Slides}}
+<section class="hero hero-slide{{if eq $i 0}} active{{end}}" style="background-image:url('{{$sl.Image}}')" data-slide="{{$i}}">
   <div class="hero-shade"></div>
   <div class="hero-body">
-    <p class="hero-kicker">#1 SEDANG TRENDING</p>
-    <h1 class="hero-title">{{.Display}}</h1>
-    <p class="hero-meta">
-      {{if .Score}}<span class="score">★ {{.Score}}%</span>{{end}}
-      {{if .SeasonYear}}<span>{{.SeasonYear}}</span>{{end}}
-      {{if .Format}}<span>{{.Format}}</span>{{end}}
-      {{if .Episodes}}<span>{{.Episodes}} episode</span>{{end}}
-    </p>
-    <p class="hero-desc">{{.Description}}</p>
+    <p class="hero-kicker">{{$sl.Kicker}}</p>
+    <h1 class="hero-title">{{$sl.Title}}</h1>
+    {{if $sl.Meta}}<p class="hero-meta"><span>{{$sl.Meta}}</span></p>{{end}}
+    {{if $sl.Desc}}<p class="hero-desc">{{$sl.Desc}}</p>{{end}}
     <div class="hero-actions">
-      <a class="btn btn-play" href="/anime/{{.ID}}">▶&nbsp; Putar</a>
-      <a class="btn btn-ghost" href="/anime/{{.ID}}">ⓘ&nbsp; Info Selengkapnya</a>
+      <a class="btn btn-play" href="{{$sl.Play}}">▶&nbsp; Putar</a>
+      <a class="btn btn-ghost" href="{{$sl.Href}}">ⓘ&nbsp; Info Selengkapnya</a>
     </div>
   </div>
 </section>
+{{end}}
+{{if gt (len .Slides) 1}}
+<div class="hero-dots">
+  {{range $i, $sl := .Slides}}<button type="button" class="hero-dot{{if eq $i 0}} active{{end}}" data-goto="{{$i}}" aria-label="Sorotan {{$i}}"></button>{{end}}
+</div>
+{{end}}
+</div>
 {{end}}
 
 {{if .Continue}}

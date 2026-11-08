@@ -4,6 +4,22 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.12.0] — 2026-11-08
+
+### Ditambahkan
+- **Pencarian gabungan**: halaman Cari kini menampilkan hasil anime
+  (AniList) plus seksi 🎬 Film dan 📺 Series dari katalog sinema dalam
+  satu halaman, masing-masing dengan kartunya sendiri. Saat sumber
+  sinema tidak terjangkau, alasannya ditampilkan dengan jujur dan
+  hasil anime tetap tampil.
+- **Hero beranda campuran**: sorotan utama kini berganti otomatis
+  (±6,5 detik, berhenti saat kursor menyentuh) antara anime trending
+  #1, film terpopuler, dan series terpopuler — lengkap dengan titik
+  navigasi. Tombol Putar series langsung menuju episode pertamanya.
+- **Halaman genre sinema** (`/genre-sinema`): semua genre katalog
+  sebagai ubin dengan tautan jelajah Film dan Series per genre;
+  terhubung dari cip genre di halaman Film/Series.
+
 ## [0.11.1] — 2026-11-08
 
 ### Diperbaiki

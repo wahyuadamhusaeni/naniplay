@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
 	"github.com/wahyuadamhusaeni/naniplay/internal/idlix"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
 )
@@ -400,4 +401,112 @@ func (s *Server) cinemaWatchSeries(w http.ResponseWriter, r *http.Request) {
 	}
 	title := resp.Series.Title
 	s.playCinema(w, r, "series:"+slug, season*1000+epNum, title, sub, resp.Series.Poster(), "/series/"+slug, title, "episode", resp.Episode.ID, next, prev)
+}
+
+// buildHeroSlides assembles the mixed home hero: top trending anime,
+// most popular movie, most popular series. Missing sources simply
+// drop out; seriesPlay resolves a series slug to its first-episode
+// playback URL (or its detail page when unknown).
+func buildHeroSlides(hero *anilist.Anime, movie *idlix.MovieItem, series *idlix.SeriesItem, seriesPlay func(string) string) []heroSlide {
+	var slides []heroSlide
+	if hero != nil {
+		meta := []string{}
+		if hero.Score > 0 {
+			meta = append(meta, "★ "+strconv.Itoa(hero.Score)+"%")
+		}
+		if hero.SeasonYear > 0 {
+			meta = append(meta, strconv.Itoa(hero.SeasonYear))
+		}
+		if hero.Format != "" {
+			meta = append(meta, hero.Format)
+		}
+		if hero.Episodes > 0 {
+			meta = append(meta, strconv.Itoa(hero.Episodes)+" episode")
+		}
+		img := hero.Banner
+		if img == "" {
+			img = hero.Cover
+		}
+		slides = append(slides, heroSlide{
+			Kicker: "#1 SEDANG TRENDING — ANIME",
+			Title:  hero.Display(),
+			Meta:   strings.Join(meta, " · "),
+			Desc:   hero.Description,
+			Image:  img,
+			Href:   "/anime/" + strconv.Itoa(hero.ID),
+			Play:   "/anime/" + strconv.Itoa(hero.ID),
+		})
+	}
+	if movie != nil {
+		meta := []string{}
+		if movie.Rating.Float() > 0 {
+			meta = append(meta, "★ "+fmt.Sprintf("%.1f", movie.Rating.Float()))
+		}
+		if movie.Year() != "" {
+			meta = append(meta, movie.Year())
+		}
+		if movie.Quality != "" {
+			meta = append(meta, movie.Quality)
+		}
+		img := movie.BackdropURL()
+		if img == "" {
+			img = movie.Poster()
+		}
+		slides = append(slides, heroSlide{
+			Kicker: "FILM TERPOPULER",
+			Title:  movie.Title,
+			Meta:   strings.Join(meta, " · "),
+			Image:  img,
+			Href:   "/film/" + movie.Slug,
+			Play:   "/film/" + movie.Slug + "/putar",
+		})
+	}
+	if series != nil {
+		meta := []string{}
+		if series.Rating.Float() > 0 {
+			meta = append(meta, "★ "+fmt.Sprintf("%.1f", series.Rating.Float()))
+		}
+		if series.Year() != "" {
+			meta = append(meta, series.Year())
+		}
+		if series.NumberOfSeasons > 0 {
+			meta = append(meta, strconv.Itoa(series.NumberOfSeasons)+" season")
+		}
+		img := series.BackdropURL()
+		if img == "" {
+			img = series.Poster()
+		}
+		slides = append(slides, heroSlide{
+			Kicker: "SERIES TERPOPULER",
+			Title:  series.Title,
+			Meta:   strings.Join(meta, " · "),
+			Image:  img,
+			Href:   "/series/" + series.Slug,
+			Play:   seriesPlay(series.Slug),
+		})
+	}
+	return slides
+}
+
+type cinemaGenreData struct {
+	baseData
+	Genres []idlix.Genre
+	Err    string
+}
+
+// cinemaGenreIndex is the cinema genre index (/genre-sinema): every
+// IDLIX genre as a tile linking into both browse sections.
+func (s *Server) cinemaGenreIndex(w http.ResponseWriter, r *http.Request) {
+	if !s.idlixEnabled() {
+		http.Redirect(w, r, "/film", http.StatusSeeOther)
+		return
+	}
+	data := cinemaGenreData{baseData: s.base()}
+	genres, err := s.idlix.Genres(r.Context())
+	if err != nil {
+		data.Err = cinemaErr(err)
+	} else {
+		data.Genres = genres
+	}
+	s.render(w, "genrecinema", data)
 }
