@@ -4,6 +4,16 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.7] — 2026-11-08
+
+### Diperbaiki
+- Penyebab sebenarnya "Slug is not found": rute `/api/indo-embed-raw`
+  terdaftar khusus GET, sehingga POST pertukaran data aplikasi
+  player ditolak 405 oleh mux sebelum mencapai handler dan API
+  upstream tidak pernah terpanggil. Rute kini menerima semua
+  metode. Terbukti dari log server: POST datang dalam 0 detik
+  tanpa pernah masuk handler.
+
 ## [1.9.6] — 2026-11-08
 
 ### Ditambah

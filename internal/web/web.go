@@ -170,7 +170,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /series-indo/{slug}/putar/{episode}", s.indoWatchSeries)
 	mux.HandleFunc("GET /api/indo-proxy", s.indoProxy)
 	mux.HandleFunc("GET /api/indo-embed", s.indoEmbedDoc)
-	mux.HandleFunc("GET /api/indo-embed-raw", s.indoEmbedRaw)
+	mux.HandleFunc("/api/indo-embed-raw", s.indoEmbedRaw) // semua metode: aplikasi player bertukar data via POST
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
 	mux.HandleFunc("GET /pengaturan", s.settingsPage)
