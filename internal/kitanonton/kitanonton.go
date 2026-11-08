@@ -119,6 +119,29 @@ func (f tlsFetcher) FetchStream(ctx context.Context, rawURL, referer, rangeHeade
 	return resp.StatusCode, resp.Header.Get("Content-Type"), resp.Body, nil
 }
 
+// GetWithReferer is Get with a caller-chosen referer (the document
+// gate on the embed hosts keys on the source site's domain).
+func (f tlsFetcher) GetWithReferer(ctx context.Context, url, referer string) (int, []byte, error) {
+	req, err := http2.NewRequestWithContext(ctx, http2.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header = http2.Header{
+		"user-agent":         {userAgent},
+		"accept":             {"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
+		"accept-language":    {"id-ID,id;q=0.9,en;q=0.8"},
+		"referer":            {referer},
+		http2.HeaderOrderKey: {"user-agent", "accept", "accept-language", "referer"},
+	}
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	return resp.StatusCode, body, err
+}
+
 func (f tlsFetcher) Get(ctx context.Context, url string) (int, []byte, error) {
 	req, err := http2.NewRequestWithContext(ctx, http2.MethodGet, url, nil)
 	if err != nil {
@@ -384,6 +407,19 @@ func (c *Client) SignForServer(ctx context.Context, rawURL string) string {
 // FetchStream proxies one CDN resource through the embed fetcher.
 func (c *Client) FetchStream(ctx context.Context, rawURL, referer, rangeHeader string) (int, string, io.ReadCloser, error) {
 	return c.embedTLS.FetchStream(ctx, rawURL, referer, rangeHeader)
+}
+
+// FetchEmbedDoc downloads one embed document with this client's
+// site as referer, for the web layer's proxied-embed mode.
+func (c *Client) FetchEmbedDoc(ctx context.Context, embedURL string) (string, error) {
+	status, body, err := c.embedTLS.GetWithReferer(ctx, embedURL, c.base+"/")
+	if err != nil {
+		return "", err
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("kitanonton: embed membalas %d", status)
+	}
+	return string(body), nil
 }
 
 // MintToken builds the JuicyCodes identity token: the CDN's

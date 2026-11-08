@@ -4,6 +4,20 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.0] — 2026-11-08
+
+### Ditambahkan
+- **Mode embed terproksi untuk Film Indo** (`/api/indo-embed` +
+  `/api/indo-embed-raw`): dokumen embed diambil server dengan
+  referer sumber, URL aset/upstream di HTML ditulis ulang ke proxy,
+  dan skrip penambal menyadap fetch + XHR di dalam halaman embed
+  sehingga seluruh lalu lintas player asli (API, playlist, segmen)
+  mengalir lewat server dengan referer embed yang benar. Ini pola
+  yang terbukti di proyek Astro lama pemilik (elka21) melawan
+  keluarga CDN yang sama; mengatasi kunci referer dokumen sekaligus
+  kunci CORS playlist. Player NaniPlay (proxy m3u8) tetap bawaan,
+  mode embed tinggal ketuk di bawah pemutar.
+
 ## [1.8.3] — 2026-11-08
 
 ### Dihapus
