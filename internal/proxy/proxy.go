@@ -51,15 +51,30 @@ func Handler() http.Handler {
 		}
 		defer resp.Body.Close()
 
+		propagate := r.URL.Query().Get("pq") == "1"
 		ct := resp.Header.Get("Content-Type")
 		isPlaylist := strings.Contains(ct, "mpegurl") || strings.HasSuffix(parsed.Path, ".m3u8")
+		var sniffed io.Reader
+		if resp.StatusCode == http.StatusOK {
+			// Some packagers serve playlists under non-playlist names
+			// (e.g. config-*.json); sniff the body prefix as well.
+			br := bufio.NewReader(resp.Body)
+			if head, err := br.Peek(7); err == nil && string(head) == "#EXTM3U" {
+				isPlaylist = true
+			}
+			sniffed = br
+		}
 		if isPlaylist && resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+			src := sniffed
+			if src == nil {
+				src = resp.Body
+			}
+			body, err := io.ReadAll(io.LimitReader(src, 8<<20))
 			if err != nil {
 				http.Error(w, "gagal membaca playlist", http.StatusBadGateway)
 				return
 			}
-			rewritten := rewritePlaylist(string(body), parsed, referer)
+			rewritten := rewritePlaylistQ(string(body), parsed, referer, propagate)
 			w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
 			w.Header().Set("Cache-Control", "no-store")
 			w.WriteHeader(http.StatusOK)
@@ -71,9 +86,12 @@ func Handler() http.Handler {
 		// not the TS sync byte, but byte 252 is) and strip the prefix;
 		// anything else streams through untouched.
 		var body io.Reader = resp.Body
+		if sniffed != nil {
+			body = sniffed
+		}
 		strip := 0
 		if r.Header.Get("Range") == "" && resp.StatusCode == http.StatusOK {
-			br := bufio.NewReader(resp.Body)
+			br := bufio.NewReader(body)
 			if head, err := br.Peek(253); err == nil && len(head) >= 253 && head[0] != 0x47 && head[252] == 0x47 {
 				strip = 252
 			}
@@ -98,9 +116,20 @@ func Handler() http.Handler {
 
 // proxyURL wraps an absolute target URL in a call back to this proxy.
 func proxyURL(abs, referer string) string {
+	return proxyURLQ(abs, referer, false)
+}
+
+// proxyURLQ additionally keeps the pq flag when propagate is set:
+// some packagers (Shaka) authorize every child request with the
+// master URL's query token, so children without their own query
+// inherit the parent's.
+func proxyURLQ(abs, referer string, propagate bool) string {
 	q := url.Values{"u": {abs}}
 	if referer != "" {
 		q.Set("r", referer)
+	}
+	if propagate {
+		q.Set("pq", "1")
 	}
 	return "/api/proxy?" + q.Encode()
 }
@@ -108,6 +137,10 @@ func proxyURL(abs, referer string) string {
 // rewritePlaylist rewrites segment and nested playlist URLs in an m3u8 body
 // so the player keeps talking to the proxy (which adds the right headers).
 func rewritePlaylist(body string, base *url.URL, referer string) string {
+	return rewritePlaylistQ(body, base, referer, false)
+}
+
+func rewritePlaylistQ(body string, base *url.URL, referer string, propagate bool) string {
 	var out strings.Builder
 	sc := bufio.NewScanner(strings.NewReader(body))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -118,11 +151,11 @@ func rewritePlaylist(body string, base *url.URL, referer string) string {
 		case trimmed == "":
 			// keep blank lines out
 		case strings.HasPrefix(trimmed, "#"):
-			out.WriteString(rewriteTagURI(trimmed, base, referer))
+			out.WriteString(rewriteTagURIQ(trimmed, base, referer, propagate))
 			out.WriteByte('\n')
 		default:
-			abs := resolve(base, trimmed)
-			out.WriteString(proxyURL(abs, referer))
+			abs := resolveQ(base, trimmed, propagate)
+			out.WriteString(proxyURLQ(abs, referer, propagate))
 			out.WriteByte('\n')
 		}
 	}
@@ -132,6 +165,10 @@ func rewritePlaylist(body string, base *url.URL, referer string) string {
 // rewriteTagURI rewrites URI="..." attributes inside playlist tags
 // (encryption keys, subtitle tracks, rendition reports).
 func rewriteTagURI(line string, base *url.URL, referer string) string {
+	return rewriteTagURIQ(line, base, referer, false)
+}
+
+func rewriteTagURIQ(line string, base *url.URL, referer string, propagate bool) string {
 	const marker = `URI="`
 	i := strings.Index(line, marker)
 	if i < 0 {
@@ -146,7 +183,7 @@ func rewriteTagURI(line string, base *url.URL, referer string) string {
 	if strings.HasPrefix(raw, "/api/proxy?") {
 		return line
 	}
-	return line[:start] + proxyURL(resolve(base, raw), referer) + line[start+end:]
+	return line[:start] + proxyURLQ(resolveQ(base, raw, propagate), referer, propagate) + line[start+end:]
 }
 
 func resolve(base *url.URL, ref string) string {
@@ -155,6 +192,21 @@ func resolve(base *url.URL, ref string) string {
 		return ref
 	}
 	return base.ResolveReference(r).String()
+}
+
+// resolveQ resolves ref against base; with propagate, a child URL
+// without its own query inherits the parent's query token.
+func resolveQ(base *url.URL, ref string, propagate bool) string {
+	abs := resolve(base, ref)
+	if !propagate || base.RawQuery == "" {
+		return abs
+	}
+	u, err := url.Parse(abs)
+	if err != nil || u.RawQuery != "" {
+		return abs
+	}
+	u.RawQuery = base.RawQuery
+	return u.String()
 }
 
 var _ = fmt.Sprintf // keep fmt for future diagnostics

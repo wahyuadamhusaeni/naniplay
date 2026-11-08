@@ -18,7 +18,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/web"
 )
 
-var version = "0.11.0"
+var version = "0.11.1"
 
 func main() {
 	log.SetPrefix("[naniplay] ")

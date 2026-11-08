@@ -33,3 +33,22 @@ func TestRewritePlaylistKeyURI(t *testing.T) {
 		t.Errorf("URI kunci tidak ditulis ulang:\n%s", out)
 	}
 }
+
+func TestRewritePlaylistPropagatesQuery(t *testing.T) {
+	base, _ := url.Parse("https://cdn.example/v/abc/config.json?t=tok123&pm=browser")
+	body := "#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI=\"/v/abc/a.m3u8\",GROUP-ID=\"a\"\n/v/abc/v.m3u8\nseg-1.ts?x=1\n"
+	out := rewritePlaylistQ(body, base, "", true)
+	if !strings.Contains(out, "t%3Dtok123") {
+		t.Fatalf("token tidak diteruskan ke URL anak:\n%s", out)
+	}
+	if strings.Contains(out, "x%3D1%26") || strings.Count(out, "t%3Dtok123") != 2 {
+		// seg-1.ts sudah punya query sendiri -> tidak ditimpa token.
+		if strings.Contains(out, "seg-1.ts%3Fx%3D1%26t") {
+			t.Fatalf("query anak yang sudah ada tidak boleh ditambah:\n%s", out)
+		}
+	}
+	plain := rewritePlaylist(body, base, "")
+	if strings.Contains(plain, "tok123") {
+		t.Fatalf("tanpa pq token tidak boleh bocor:\n%s", plain)
+	}
+}

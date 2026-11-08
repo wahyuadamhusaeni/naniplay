@@ -4,6 +4,19 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.11.1] — 2026-11-08
+
+### Diperbaiki
+- **Putar sinema benar-benar mengalir**: playlist host video tersaji
+  dengan nama berkas non-playlist (mis. `config-*.json`) dan setiap
+  permintaan anak (varian, audio, segmen) wajib membawa token query
+  dari URL master (skema Shaka Packager). Proxy kini (1) mengenali
+  playlist dari isi `#EXTM3U` tanpa bergantung ekstensi/tipe konten,
+  dan (2) meneruskan query induk ke URL anak yang belum punya query
+  bila aliran memintanya (parameter `pq=1`, hanya dipakai putar
+  sinema — aliran anime tidak berubah). Terverifikasi end-to-end:
+  master → varian → segmen media 200 lewat proxy publik.
+
 ## [0.11.0] — 2026-11-08
 
 ### Ditambahkan

@@ -344,7 +344,7 @@ func (s *Server) playCinema(w http.ResponseWriter, r *http.Request, key string, 
 		return
 	}
 	s.importCinemaSubtitles(ctx, key, encEp, pb.Subtitles)
-	data.ProxyURL = "/api/proxy?u=" + url.QueryEscape(pb.MasterURL) + "&r=" + url.QueryEscape(s.idlix.Base()+"/")
+	data.ProxyURL = "/api/proxy?u=" + url.QueryEscape(pb.MasterURL) + "&r=" + url.QueryEscape(s.idlix.Base()+"/") + "&pq=1"
 	s.render(w, "cinemawatch", data)
 }
 
