@@ -185,7 +185,10 @@
     if (!box) return;
     box.classList.add("ui-on");
     clearTimeout(uiTimer);
-    uiTimer = setTimeout(function () { box.classList.remove("ui-on"); }, 5000);
+    uiTimer = setTimeout(function () {
+      // Saat pause, kontrol tetap tampil — jangan sembunyikan.
+      if (!video.paused) box.classList.remove("ui-on");
+    }, 6000);
   }
   function paintSeek() {
     if (!video.duration) return;
@@ -243,6 +246,8 @@
     });
     video.addEventListener("timeupdate", function () {
       if (upDismissed || !video.duration) return;
+      // Jangan tutupi tombol Lewati OP/ED yang sedang tampil.
+      upNext.style.bottom = (skipBtn && !skipBtn.hidden && box.clientHeight >= 320) ? "176px" : "118px";
       var left = video.duration - video.currentTime;
       if (left <= 20 && left > 0) {
         upNext.hidden = false;
@@ -261,10 +266,22 @@
       syncPlayUI(); pokeUI();
     });
     video.addEventListener("pause", function () { syncPlayUI(); pokeUI(); });
+    video.addEventListener("ended", function () { syncPlayUI(); pokeUI(); });
     // Klik/ketuk di area video TIDAK play/pause (itu tugas tombol
     // play): sekali klik hanya tampil/sembunyi kontrol, dua kali
     // klik = layar penuh. Timer membedakan klik tunggal vs ganda.
     var stageClickTimer = null;
+    // Keadaan kontrol dicatat saat jari/tikus MENYENTUH (pointerdown),
+    // sebelum event mouse sintetis dari ketukan (mousemove kompatibilitas)
+    // sempat menyalakan UI lewat pokeUI. Tanpa ini, ketukan untuk
+    // MENAMPILKAN kontrol justru membacanya sebagai "sudah tampil" lalu
+    // mematikannya 280ms kemudian — kontrol terasa hilang sekejap.
+    var stageWasOn = null, stageDownAt = 0;
+    box.addEventListener("pointerdown", function (e) {
+      if (e.target !== video && e.target !== box) return;
+      stageWasOn = box.classList.contains("ui-on");
+      stageDownAt = Date.now();
+    });
     box.addEventListener("click", function (e) {
       if (e.target !== video && e.target !== box) return;
       if (stageClickTimer) {
@@ -275,7 +292,9 @@
       }
       stageClickTimer = setTimeout(function () {
         stageClickTimer = null;
-        if (box.classList.contains("ui-on")) {
+        var wasOn = (stageWasOn !== null && Date.now() - stageDownAt < 1500)
+          ? stageWasOn : box.classList.contains("ui-on");
+        if (wasOn) {
           box.classList.remove("ui-on");
           clearTimeout(uiTimer);
         } else pokeUI();

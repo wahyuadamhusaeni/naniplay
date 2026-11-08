@@ -191,6 +191,9 @@ func logRequests(next http.Handler) http.Handler {
 }
 
 func (s *Server) render(w http.ResponseWriter, page string, data any) {
+	// HTML tidak boleh di-cache: halaman mereferensikan aset berversi,
+	// dan HTML basi berarti pengguna melihat versi lama berjam-jam.
+	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := s.tpl[page].ExecuteTemplate(w, "base", data); err != nil {
 		log.Printf("render %s: %v", page, err)
@@ -200,6 +203,7 @@ func (s *Server) render(w http.ResponseWriter, page string, data any) {
 // renderNotFound renders the styled not-found page with a real
 // 404 status (previously these rendered with 200 — a soft 404).
 func (s *Server) renderNotFound(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 	if err := s.tpl["notfound"].ExecuteTemplate(w, "base", s.base()); err != nil {

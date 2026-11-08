@@ -177,3 +177,4 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Autoplay episode berikutnya (kartu hitung mundur 20 dtk terakhir + lanjut otomatis)
 - [x] Hapus riwayat per judul & hapus semua (endpoint memakai DeleteHistory yang sudah ada)
 - [x] Penanda hari ini di Jadwal; meta/OG/theme-color; footer mencerminkan cakupan penuh
+- [x] v1.6.1: perbaiki lomba event ketuk-vs-klik pada kontrol pemutar (keputusan dari pointerdown), kontrol menetap saat pause, HTML no-cache, tumpukan kartu episode berikutnya vs tombol skip

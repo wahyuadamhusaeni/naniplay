@@ -639,3 +639,8 @@ body.no-scroll { overflow: hidden; }
 .list-actions { display: flex; justify-content: flex-end; margin-bottom: .8rem; }
 .sched-today { color: #fff; }
 .sched-today::before { content: "● "; color: var(--red); }
+
+/* v1.6.1: cegah zoom otomatis iOS saat fokus ke kolom isian di HP */
+@media (max-width: 720px) {
+  input, select, textarea { font-size: 16px; }
+}
