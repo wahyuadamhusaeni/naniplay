@@ -27,7 +27,7 @@
       </defs>
     </svg>
     <video id="player" playsinline data-quality="{{.PrefQuality}}" data-subpref="{{.PrefSubLang}}" data-subsource="SubDL" poster="{{.Poster}}"
-      data-src="{{.ProxyURL}}"
+      data-src="{{.ProxyURL}}"{{if .CdnToken}} data-cdntoken="{{.CdnToken}}"{{end}}
       data-anilist="0" data-key="{{.Key}}"
       data-title="{{.Title}}"
       data-poster="{{.Poster}}"
@@ -79,12 +79,12 @@
       </div>
     </div>
   </div>
-  <div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>
+  {{if eq .Server "KitaNonton"}}<div class="player-meta dim">{{.Server}} · video mengalir langsung dari CDN penyedia ke perangkatmu</div>{{else}}<div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>{{end}}
 
   <div class="watch-info">
     <img class="wi-poster" src="{{.Poster}}" alt="" loading="lazy">
     <div class="wi-main">
-      {{if .Meta}}<div class="wi-meta"><span>{{.Meta}}</span><span class="wi-src">IDLIX</span></div>{{end}}
+      {{if .Meta}}<div class="wi-meta"><span>{{.Meta}}</span><span class="wi-src">{{.Server}}</span></div>{{end}}
       {{if .Overview}}<p class="wi-desc clamp" id="wiDesc">{{.Overview}}</p>
       <button class="wi-more" id="wiMore" type="button">Baca selengkapnya</button>{{end}}
       <div class="wi-actions">
@@ -151,5 +151,5 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=17100"></script>
+<script src="/static/player.js?v=18000"></script>
 {{end}}

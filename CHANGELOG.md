@@ -4,6 +4,143 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.8.0] — 2026-11-08
+
+### Ditambahkan
+- **Seksi Film Indo (KitaNonton)** — film & series Indonesia dari arsip
+  negara Indonesia KitaNonton (±1.400 judul, 62 halaman): katalog
+  berpaginasi, halaman detail (sinopsis, genre, sutradara, pemeran,
+  durasi, rating), daftar episode untuk series, dan rel "Film Indo
+  Terbaru" di beranda. Domain sumber bisa diganti dari Pengaturan
+  (situsnya sering berpindah domain), lengkap dengan tombol tes
+  koneksi. Kunci media baru `indo:` / `indoser:` berbagi sistem
+  Daftar Saya, Riwayat, dan subtitle dengan seksi lain; pencarian
+  subtitle daringnya memakai SubDL berdasarkan judul.
+- **Putar langsung dari CDN** — server video KitaNonton (JuicyCodes)
+  mengikat token identitasnya ke IP + User-Agent penonton, jadi
+  server hanya membongkar konfigurasi pemutar (blob `_juicycodes`
+  terdekode penuh di sisi server) lalu menyerahkan URL master HLS
+  yang ditandatangani untuk penonton; playlist dan segmen mengalir
+  langsung dari CDN ke perangkat penonton, dan pemutar menempelkan
+  token yang sama ke permintaan anak lewat `xhrSetup` hls.js.
+
+## [1.7.1] — 2026-11-08
+
+### Diubah
+- Pemilih sumber dihapus dari halaman putar (diganti info sumber
+  pasif + tautan "Coba sumber lain" pada alert galat) dan diturunkan
+  menjadi tautan teks tenang di halaman detail. Hierarki final:
+  Pengaturan = bawaan global, Detail = pengecualian per judul,
+  Putar = tanpa pemilih.
+
+## [1.7.0] — 2026-11-08
+
+### Ditambahkan
+- Panel subtitle yang bisa dilipat di halaman putar (bawaan tertutup
+  di HP, pilihan diingat) dan blok info "sedang diputar" (poster,
+  meta, sinopsis, tombol Daftar Saya, chip genre) untuk anime dan
+  sinema.
+
+## [1.6.3] — 2026-11-08
+
+### Diperbaiki
+- Audit ganda (tinjauan kode + audit browser langsung): terjemahan
+  subtitle sinema yang yatim, panic pada gabung/sinkron trek tak
+  dikenal, kebocoran kunci API lewat tes koneksi, pemeriksaan
+  kepemilikan autosync, pengambil subtitle kini lewat klien
+  terproteksi SSRF, subtitle ganda pada sumber hardsub, dedupe
+  penyimpanan trek, dan batas cache AniList.
+
+## [1.6.2] — 2026-11-08
+
+### Diperbaiki
+- Penjaga SSRF pada proxy HLS (validasi IP tujuan di lapisan dial)
+  dan soft-404 terakhir yang kini dirender sebagai 404 betulan.
+
+## [1.6.1] — 2026-11-08
+
+### Diperbaiki
+- Kontrol pemutar yang hilang-timbul di layar sentuh (keputusan
+  tampil/sembunyi diambil dari keadaan saat pointerdown), kontrol
+  menetap selama jeda, HTML kini `Cache-Control: no-cache`, dan
+  masukan formulir 16px di HP (anti zoom fokus iOS).
+
+## [1.6.0] — 2026-11-08
+
+### Ditambahkan
+- Putar otomatis episode berikutnya dengan kartu hitung mundur,
+  hapus riwayat per judul & hapus semua, penanda hari ini di Jadwal.
+
+### Diubah
+- README ditulis ulang mencerminkan cakupan penuh (anime + film +
+  series); Tatap dan idlix-androidtv dikreditkan sewajarnya.
+
+## [1.5.2] — 2026-11-08
+
+### Diperbaiki
+- Pemilih episode: 6 tombol per baris di HP dan bilah cari selebar
+  penuh.
+
+## [1.5.1] — 2026-11-08
+
+### Diubah
+- Sembunyi otomatis kontrol pemutar diperpanjang menjadi 5 detik.
+
+## [1.5.0] — 2026-11-08
+
+### Ditambahkan
+- Rel "🆕 Episode Terbaru" di beranda (episode yang baru tayang
+  72 jam terakhir, tautan langsung ke halaman putar).
+
+## [1.4.2] — 2026-11-08
+
+### Diubah
+- Klik area video hanya menampilkan/menyembunyikan kontrol; putar/
+  jeda lewat tombol khusus, spasi, atau tombol putar besar.
+
+## [1.4.1] — 2026-11-08
+
+### Diperbaiki
+- Tombol layar penuh yang hilang di HP (baris kontrol meluber) dan
+  semua tombol kelola subtitle dilipat ke satu panel "Kelola".
+
+## [1.4.0] — 2026-11-08
+
+### Diubah
+- Panel subtitle didesain ulang: daftar trek sebagai baris yang bisa
+  diklik (bukan dropdown), tombol cari subtitle daring selebar
+  penuh, perkakas dilipat dalam satu `<details>`.
+
+## [1.3.0] — 2026-11-08
+
+### Ditambahkan
+- Kontrol pemutar didesain ulang bergaya Netflix (sprite SVG, seek
+  bar kustom), navigasi rel beranda, hero dengan tombol Daftar Saya
+  per slide, dan rel personal "Pilihan {Genre} Untukmu".
+
+### Diperbaiki
+- Soft-404 di beranda dan lima titik sinema kini 404 betulan.
+
+## [1.2.0] — 2026-11-08
+
+### Ditambahkan
+- Subtitle film & series dari SubDL (kunci API pengguna sendiri):
+  pencarian daring di panel subtitle untuk judul sinema berdasarkan
+  ID IMDb.
+
+## [1.1.1] — 2026-11-08
+
+### Diperbaiki
+- Tes koneksi AI kini memakai panggilan chat completion minimal
+  (bukan GET /models yang bisa menggantung).
+
+## [1.1.0] — 2026-11-08
+
+### Ditambahkan
+- Pengaturan pemutaran ala Tatap: sumber utama, kualitas bawaan,
+  bahasa subtitle yang diingat antar episode, prompt fansub kustom,
+  deteksi penyedia AI dari kunci, dan tombol tes koneksi per alamat.
+
 ## [1.0.1] — 2026-11-08
 
 ### Diperbaiki

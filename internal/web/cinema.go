@@ -28,6 +28,12 @@ func mediaHref(key string) string {
 	if slug, ok := strings.CutPrefix(key, "movie:"); ok {
 		return "/film/" + slug
 	}
+	if slug, ok := strings.CutPrefix(key, "indo:"); ok {
+		return "/film-indo/" + slug
+	}
+	if slug, ok := strings.CutPrefix(key, "indoser:"); ok {
+		return "/series-indo/" + slug
+	}
 	if slug, ok := strings.CutPrefix(key, "series:"); ok {
 		return "/series/" + slug
 	}
@@ -45,6 +51,10 @@ func watchHref(h store.HistoryEntry) string {
 		slug := strings.TrimPrefix(h.Key, "series:")
 		return fmt.Sprintf("/series/%s/putar/%d/%d", slug, h.Episode/1000, h.Episode%1000)
 	}
+	if strings.HasPrefix(h.Key, "indoser:") {
+		slug := strings.TrimPrefix(h.Key, "indoser:")
+		return fmt.Sprintf("/series-indo/%s/putar/%d", slug, h.Episode)
+	}
 	return mediaHref(h.Key)
 }
 
@@ -56,6 +66,9 @@ func epLabel(h store.HistoryEntry) string {
 	}
 	if strings.HasPrefix(h.Key, "series:") && h.Episode >= 1000 {
 		return "S" + strconv.Itoa(h.Episode/1000) + " E" + strconv.Itoa(h.Episode%1000)
+	}
+	if strings.HasPrefix(h.Key, "indoser:") {
+		return "Ep " + strconv.Itoa(h.Episode)
 	}
 	return ""
 }
@@ -325,7 +338,8 @@ type cinemaWatchData struct {
 	Back        string
 	BackText    string
 	ProxyURL    string
-	Episode     int // encoded (series: season*1000+episode; movie: 1)
+	CdnToken    string // Film Indo only: viewer identity token for direct-CDN playback
+	Episode     int    // encoded (series: season*1000+episode; movie: 1)
 	SavedPos    float64
 	Next        string
 	Prev        string

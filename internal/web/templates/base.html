@@ -9,7 +9,7 @@
 <meta property="og:title" content="NaniPlay — Nani?! Play.">
 <meta property="og:description" content="Anime subtitle Indonesia, film, dan series dalam satu aplikasi self-hosted. Tanpa akun, tanpa iklan.">
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="/static/style.css?v=17100">
+<link rel="stylesheet" href="/static/style.css?v=18000">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23141414'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='%23e50914' font-family='Arial Black' font-weight='900'>N</text></svg>">
 </head>
 <body>
@@ -20,7 +20,8 @@
     <a href="/jadwal">Jadwal</a>
     <a href="/genre">Genre</a>{{if .IdlixOn}}
     <a href="/film">Film</a>
-    <a href="/series">Series</a>{{end}}
+    <a href="/series">Series</a>{{end}}{{if .IndoOn}}
+    <a href="/film-indo">Film Indo</a>{{end}}
     <a href="/daftar-saya">Daftar Saya</a>
     <a href="/riwayat">Riwayat</a>
     <a href="/pengaturan">Pengaturan</a>
@@ -45,7 +46,8 @@
     <a href="/jadwal">🗓 Jadwal Rilis</a>
     <a href="/genre">🎭 Genre</a>{{if .IdlixOn}}
     <a href="/film">🎬 Film</a>
-    <a href="/series">📺 Series</a>{{end}}
+    <a href="/series">📺 Series</a>{{end}}{{if .IndoOn}}
+    <a href="/film-indo">🇮🇩 Film Indo</a>{{end}}
     <a href="/daftar-saya">🔖 Daftar Saya</a>
     <a href="/riwayat">🕘 Riwayat</a>
     <a href="/pengaturan">⚙️ Pengaturan</a>
@@ -59,7 +61,7 @@
   <p><strong>NaniPlay</strong> — anime, film &amp; series dalam satu aplikasi. Konten berasal dari sumber publik; NaniPlay tidak menyimpan berkas video.</p>
   <p class="dim">Metadata oleh AniList &amp; IDLIX · Stream anime oleh Otakudesu, HiAnime &amp; AniChan</p>
 </footer>
-<script src="/static/app.js?v=17100"></script>
+<script src="/static/app.js?v=18000"></script>
 {{block "scripts" .}}{{end}}
 </body>
 </html>{{end}}

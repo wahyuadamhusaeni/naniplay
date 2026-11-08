@@ -19,6 +19,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
 	"github.com/wahyuadamhusaeni/naniplay/internal/aniskip"
 	"github.com/wahyuadamhusaeni/naniplay/internal/idlix"
+	"github.com/wahyuadamhusaeni/naniplay/internal/kitanonton"
 	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/anichan"
@@ -45,6 +46,8 @@ type Server struct {
 	db        *store.Store
 	idlixBase string
 	idlix     *idlix.Client
+	kitaBase  string
+	kita      *kitanonton.Client
 	tpl       map[string]*template.Template
 
 	mu       sync.Mutex
@@ -65,7 +68,7 @@ type matchEntry struct {
 // New builds a Server. Saved otakudesu_base / hianime_base settings
 // override the configured defaults, so a source domain change never
 // needs a rebuild.
-func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) {
+func New(db *store.Store, otakuBase, hiBase, idlixBase, kitaBase string) (*Server, error) {
 	if saved := db.GetSetting("otakudesu_base"); saved != "" {
 		otakuBase = saved
 	}
@@ -75,7 +78,14 @@ func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) 
 	if saved := db.GetSetting("idlix_base"); saved != "" {
 		idlixBase = saved
 	}
+	if saved := db.GetSetting("kita_base"); saved != "" {
+		kitaBase = saved
+	}
 	idlixClient, err := idlix.New(idlixBase)
+	if err != nil {
+		return nil, err
+	}
+	kitaClient, err := kitanonton.New(kitaBase)
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +106,13 @@ func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) 
 		db:        db,
 		idlixBase: idlixBase,
 		idlix:     idlixClient,
+		kitaBase:  kitaBase,
+		kita:      kitaClient,
 		tpl:       map[string]*template.Template{},
 		matches:   map[string]matchEntry{},
 		episodes:  map[string][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail", "cinemawatch", "genrecinema"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail", "cinemawatch", "genrecinema", "indobrowse", "indodetail"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
@@ -120,10 +132,11 @@ func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) 
 // appear only when the IDLIX catalog is enabled).
 type baseData struct {
 	IdlixOn bool
+	IndoOn  bool
 }
 
 func (s *Server) base() baseData {
-	return baseData{IdlixOn: s.idlixEnabled()}
+	return baseData{IdlixOn: s.idlixEnabled(), IndoOn: s.indoEnabled()}
 }
 
 // idlixEnabled reports whether the IDLIX movie/series catalog is on.
@@ -150,6 +163,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /film/{slug}/putar", s.cinemaWatchMovie)
 	mux.HandleFunc("GET /series/{slug}", s.seriesDetailPage)
 	mux.HandleFunc("GET /series/{slug}/putar/{season}/{episode}", s.cinemaWatchSeries)
+	mux.HandleFunc("GET /film-indo", s.indoBrowse)
+	mux.HandleFunc("GET /film-indo/{slug}", s.indoMovieDetail)
+	mux.HandleFunc("GET /film-indo/{slug}/putar", s.indoWatchMovie)
+	mux.HandleFunc("GET /series-indo/{slug}", s.indoSeriesDetail)
+	mux.HandleFunc("GET /series-indo/{slug}/putar/{episode}", s.indoWatchSeries)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
 	mux.HandleFunc("GET /pengaturan", s.settingsPage)
@@ -247,6 +265,7 @@ type homeData struct {
 	Favorites     []favView
 	CinemaFilm    []cinemaCard
 	CinemaSeri    []cinemaCard
+	Indo          []cinemaCard
 	Personal      []anilist.Anime
 	PersonalGenre string
 	Latest        []latestView
@@ -345,6 +364,14 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 			if len(items) > 0 {
 				topSeries = &items[0]
 			}
+		}
+	}
+	if s.indoEnabled() {
+		if items, _, err := s.kita.Catalog(ctx, 1); err == nil && len(items) > 0 {
+			if len(items) > 12 {
+				items = items[:12]
+			}
+			data.Indo = indoCards(items)
 		}
 	}
 	if eps, err := s.anilist.LatestEpisodes(ctx); err == nil {
@@ -1050,6 +1077,8 @@ type settingsData struct {
 	HiBase    string
 	IdlixBase string
 	IdlixOn   bool
+	KitaBase  string
+	KitaOn    bool
 	LLMBase   string
 	LLMModel  string
 	LLMKeySet bool
@@ -1084,6 +1113,8 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 		HiBase:      s.hi.Base(),
 		IdlixBase:   s.idlixBase,
 		IdlixOn:     s.idlixEnabled(),
+		KitaBase:    s.kitaBase,
+		KitaOn:      s.indoEnabled(),
 		LLMBase:     s.db.GetSetting("llm_base"),
 		LLMModel:    s.db.GetSetting("llm_model"),
 		LLMKeySet:   s.db.GetSetting("llm_key") != "",
@@ -1169,6 +1200,16 @@ func (s *Server) apiSettingsTest(w http.ResponseWriter, r *http.Request) {
 	note := ""
 	ok := false
 	switch body.Target {
+	case "kita":
+		cli, err := kitanonton.New(base)
+		if err == nil {
+			_, _, err = cli.Catalog(ctx, 1)
+		}
+		if err != nil {
+			note = "KitaNonton tidak menjawab: " + err.Error()
+		} else {
+			ok, note = true, "KitaNonton menjawab normal"
+		}
 	case "idlix":
 		cli, err := idlix.New(base)
 		if err == nil {
@@ -1368,6 +1409,26 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 			on = "1"
 		}
 		_ = s.db.SetSetting("idlix_on", on)
+	}
+	if _, present := r.Form["kita_base"]; present {
+		// Film Indo (KitaNonton). Domain rotates often, hence a
+		// settings field exactly like the other sources.
+		kitaBase := strings.TrimSpace(r.FormValue("kita_base"))
+		if kitaBase != "" && !strings.HasPrefix(kitaBase, "https://") && !strings.HasPrefix(kitaBase, "http://") {
+			data := settingsData{baseData: s.base(), OtakuBase: s.otaku.Base(), HiBase: s.hi.Base(), IdlixBase: s.idlixBase, IdlixOn: s.idlixEnabled(), KitaBase: kitaBase, KitaOn: s.indoEnabled(), LLMBase: s.db.GetSetting("llm_base"), LLMModel: s.db.GetSetting("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat KitaNonton harus diawali http:// atau https://"}
+			s.render(w, "settings", data)
+			return
+		}
+		_ = s.db.SetSetting("kita_base", kitaBase)
+		if kitaBase != "" {
+			s.kitaBase = kitaBase
+			s.kita.SetBase(kitaBase)
+		}
+		on := ""
+		if r.FormValue("indo_on") == "1" {
+			on = "1"
+		}
+		_ = s.db.SetSetting("indo_on", on)
 	}
 	http.Redirect(w, r, "/pengaturan?saved=1", http.StatusSeeOther)
 }

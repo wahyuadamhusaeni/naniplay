@@ -1,0 +1,50 @@
+{{define "title"}}{{.D.Title}} — NaniPlay{{end}}
+{{define "content"}}
+{{with .D}}
+<section class="detail-hero" style="background-image:url('{{.Poster}}')">
+  <div class="hero-shade"></div>
+  <div class="detail-body">
+    <img class="detail-poster" src="{{.Poster}}" alt="{{.Title}}">
+    <div class="detail-info">
+      <h1>{{.Title}}{{if .Year}} ({{.Year}}){{end}}</h1>
+      <p class="hero-meta">
+        {{if .Rating}}<span class="score">★ {{printf "%.1f" .Rating}}</span>{{end}}
+        {{if $.Meta}}<span>{{$.Meta}}</span>{{end}}
+        {{if .Director}}<span>Sutradara: {{.Director}}</span>{{end}}
+      </p>
+      {{if .Genres}}<p class="genres">{{range .Genres}}<span class="chip">{{.}}</span>{{end}}</p>{{end}}
+      {{if .Overview}}<p class="hero-desc">{{.Overview}}</p>{{end}}
+      {{if .Cast}}<p class="dim small">Pemeran: {{.Cast}}</p>{{end}}
+      <div class="hero-actions">
+        {{if .Series}}
+        <a class="btn btn-play" href="/series-indo/{{.Slug}}/putar/1">▶&nbsp; Putar Episode 1</a>
+        {{else}}
+        <a class="btn btn-play" href="/film-indo/{{.Slug}}/putar">▶&nbsp; Putar</a>
+        {{end}}
+        <form method="post" action="/favorites/toggle" class="inline-form">
+          <input type="hidden" name="media_key" value="{{$.Key}}">
+          <input type="hidden" name="title" value="{{.Title}}">
+          <input type="hidden" name="poster" value="{{.Poster}}">
+          <input type="hidden" name="return" value="{{if .Series}}/series-indo/{{.Slug}}{{else}}/film-indo/{{.Slug}}{{end}}">
+          <button class="btn btn-ghost" type="submit">{{if $.Fav}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+        </form>
+      </div>
+      <p class="dim small">Sumber: KitaNonton. Video mengalir langsung dari CDN penyedia ke perangkatmu.</p>
+    </div>
+  </div>
+</section>
+{{if .Series}}
+<section class="page-wrap">
+  <h2 class="page-h">Episode{{if $.Episodes}} ({{$.Episodes}}){{end}}</h2>
+  {{if $.Episodes}}
+  <div class="ep-grid">
+    {{$slug := .Slug}}
+    {{range $i := $.EpList}}<a class="ep-btn" href="/series-indo/{{$slug}}/putar/{{$i}}">{{$i}}</a>{{end}}
+  </div>
+  {{else}}
+  <p class="dim">Daftar episode belum bisa dimuat dari sumber. Coba muat ulang halaman ini.</p>
+  {{end}}
+</section>
+{{end}}
+{{end}}
+{{end}}

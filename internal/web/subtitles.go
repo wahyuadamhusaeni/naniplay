@@ -294,6 +294,22 @@ func (s *Server) searchSubDLSubtitles(ctx context.Context, key string, episode i
 		q.Type = "movie"
 		q.IMDb = d.ImdbID
 		q.Name = d.Title
+	case strings.HasPrefix(key, "indo:"):
+		d, err := s.kita.Detail(ctx, strings.TrimPrefix(key, "indo:"), false)
+		if err != nil || d == nil {
+			return []subtitle.Candidate{}
+		}
+		q.Type = "movie"
+		q.Name = d.Title
+	case strings.HasPrefix(key, "indoser:"):
+		d, err := s.kita.Detail(ctx, strings.TrimPrefix(key, "indoser:"), true)
+		if err != nil || d == nil {
+			return []subtitle.Candidate{}
+		}
+		q.Type = "tv"
+		q.Name = d.Title
+		q.Season = 1
+		q.Episode = episode
 	case strings.HasPrefix(key, "series:"):
 		d, err := s.idlix.SeriesDetail(ctx, strings.TrimPrefix(key, "series:"))
 		if err != nil || d == nil {

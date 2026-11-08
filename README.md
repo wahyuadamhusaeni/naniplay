@@ -27,6 +27,10 @@ dan satu pemutar.
   sumber utama bisa diatur di Pengaturan
 - **Film & Series (IDLIX)** — ribuan judul dengan detail lengkap (sinopsis,
   pemeran, sutradara, kualitas), pemilih season/episode, dan status video
+- **Film Indo (KitaNonton)** — film & series Indonesia dari arsip negara
+  Indonesia KitaNonton: katalog, detail, dan putar langsung dari CDN
+  penyedia ke perangkat penonton; domain sumber bisa diganti dari
+  Pengaturan karena situsnya sering berpindah
 - **Pemutar bergaya Netflix** — kontrol kustom penuh ikon SVG: seek bar
   dengan scrub & tooltip waktu, mundur/maju 10 detik, menu kualitas HLS,
   kecepatan putar 0,5×–2×, volume, PiP, layar penuh, tombol *Episode
@@ -106,6 +110,7 @@ make run        # atau: go run ./cmd/naniplay
 | `OTAKU_BASE` | `https://ww2.otakudesu.biz` | Domain sumber Otakudesu |
 | `HIANIME_BASE` | `https://hianime.at` | Domain sumber HiAnime |
 | `IDLIX_BASE` | `https://z2.idlixku.com` | Domain sumber IDLIX |
+| `KITANONTON_BASE` | `https://kitanonton2.garden` | Domain sumber KitaNonton (Film Indo) |
 
 Sebagian besar pengaturan juga bisa diubah dari halaman **Pengaturan** di UI
 dan tersimpan di SQLite (mengalahkan nilai bawaan lingkungan).

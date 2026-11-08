@@ -182,3 +182,11 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] v1.6.3: audit ganda (kode + browser live) — yatim terjemahan sinema, panic merge/autosync, bocor kunci via tes koneksi, kepemilikan autosync, SSRF pengambil subtitle, subtitle ganda hardsub, dedupe trek, cache AniList terbatas
 - [x] v1.7.0: UX halaman putar — panel subtitle lipat (bawaan tertutup di HP, diingat) + blok info sedang diputar (poster, meta, sinopsis, Daftar Saya, genre) untuk anime & sinema
 - [x] v1.7.1: pemilih sumber — dihapus dari halaman putar (diganti info pasif + tautan pemulihan di alert), diturunkan jadi tautan teks tenang di detail
+
+## Fase 10 — Film Indo / KitaNonton (v1.8.0)
+
+- [x] Klien KitaNonton full-Go (paket `internal/kitanonton`): katalog arsip `/country/indonesia/` berpaginasi, detail, daftar server halaman putar (film & series per episode), domain basis dari Pengaturan (`kita_base`, env `KITANONTON_BASE`)
+- [x] Pembongkar blob `_juicycodes` (JuicyCodes): garam 3 char terakhir, base64 URL-safe, substitusi peta simbol 10 huruf, potongan 4 digit → konfigurasi JW polos (master HLS `*.groovy.monster` s.d. 1080p)
+- [x] Token identitas JuicyCodes = `base64(IP + "~~" + UA)` penonton (tanpa kunci rahasia; terbukti membuka master dari dua server) — URL master ditandatangani untuk penonton dan diserahkan ke browser; segmen mengalir langsung dari CDN; token ditempel ulang ke permintaan anak via `xhrSetup` hls.js
+- [x] Seksi "🇮🇩 Film Indo": `/film-indo`, `/film-indo/{slug}`, `/series-indo/{slug}` + putar, rel beranda, kunci media `indo:`/`indoser:`, subtitle daring via SubDL berdasarkan judul
+- [ ] Server cadangan AbyssPlayer ("ex") belum didukung — hanya server "dv" (JuicyCodes) yang dipakai; judul yang hanya punya server "ex" menampilkan pesan jujur

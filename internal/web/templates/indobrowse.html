@@ -1,0 +1,27 @@
+{{define "title"}}Film Indo — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">🇮🇩 Film Indo</h2>
+  {{if .Disabled}}
+  <div class="empty-box">
+    <p><strong>Seksi Film Indo belum aktif.</strong></p>
+    <p class="dim">Aktifkan di <a href="/pengaturan">Pengaturan → Film Indonesia (KitaNonton)</a>.</p>
+  </div>
+  {{else}}
+  <p class="dim">Film &amp; series Indonesia dari KitaNonton — katalog negara Indonesia, diperbarui mengikuti situs sumbernya.</p>
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  {{if .Cards}}
+  <div class="grid">
+    {{range .Cards}}{{template "cinemacard" .}}{{end}}
+  </div>
+  {{else if not .Err}}<p class="dim">Katalog kosong untuk halaman ini.</p>{{end}}
+  {{if gt .TotalPag 1}}
+  <nav class="pager">
+    {{if gt .Page 1}}<a class="btn btn-ghost" href="/film-indo?page={{sub .Page 1}}">← Sebelumnya</a>{{end}}
+    <span class="dim">Halaman {{.Page}} dari {{.TotalPag}}</span>
+    {{if lt .Page .TotalPag}}<a class="btn btn-ghost" href="/film-indo?page={{add .Page 1}}">Berikutnya →</a>{{end}}
+  </nav>
+  {{end}}
+  {{end}}
+</section>
+{{end}}

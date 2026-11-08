@@ -20,7 +20,19 @@
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
     } else if (window.Hls && Hls.isSupported()) {
-      hls = new Hls({ maxBufferLength: 30 });
+      var hlsCfg = { maxBufferLength: 30 };
+      // Film Indo: the JuicyCodes CDN binds its identity token to the
+      // viewer, so child playlists/segments need the same token the
+      // master URL carries. Re-apply it to any request lacking one.
+      var cdnToken = video.dataset.cdntoken || "";
+      if (cdnToken) {
+        hlsCfg.xhrSetup = function (xhr, url) {
+          if (url && url.indexOf("token=") === -1) {
+            xhr.open("GET", url + (url.indexOf("?") === -1 ? "?" : "&") + "token=" + cdnToken, true);
+          }
+        };
+      }
+      hls = new Hls(hlsCfg);
       hls.loadSource(src);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, buildQualityMenu);

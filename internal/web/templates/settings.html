@@ -93,6 +93,23 @@
   </form>
 
   <form method="post" action="/pengaturan" class="settings-form">
+    <h3>Film Indonesia (KitaNonton)</h3>
+    <label class="settings-check">
+      <input type="checkbox" name="indo_on" value="1"{{if .KitaOn}} checked{{end}}>
+      Aktifkan seksi Film Indo
+    </label>
+    <label>Alamat basis KitaNonton
+      <input type="url" id="kita_base" name="kita_base" value="{{.KitaBase}}" placeholder="https://kitanonton2.garden">
+    </label>
+    <p class="dim small">Film &amp; series Indonesia dari KitaNonton (arsip negara Indonesia). Situsnya sering berganti domain — ganti alamatnya di sini bila pindah, tanpa perlu memasang ulang.</p>
+    <div class="settings-row">
+      <button class="btn" type="button" data-test="kita" data-input="kita_base">Tes</button>
+      <button class="btn btn-play" type="submit">Simpan</button>
+    </div>
+    <p class="test-note dim small" id="test-kita"></p>
+  </form>
+
+  <form method="post" action="/pengaturan" class="settings-form">
     <h3>Subtitle Film &amp; Series (SubDL) — opsional</h3>
     <p class="dim small">Pencarian subtitle online untuk Film &amp; Series memakai <a href="https://subdl.com" target="_blank" rel="noopener">SubDL</a>. Daftar gratis di sana, buat API key, lalu tempel di sini. Tanpa kunci ini, subtitle sinema hanya berasal dari host video. Kunci hanya disimpan di database NaniPlay di perangkat ini.</p>
     <div class="settings-stack">

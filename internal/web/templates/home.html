@@ -162,6 +162,19 @@
 </section>
 {{end}}
 
+{{if .Indo}}
+<section class="rail">
+  <div class="rail-head"><h2>🇮🇩 Film Indo Terbaru</h2><a class="rail-more" href="/film-indo">Lihat Semua ›</a></div>
+  <div class="rail-wrap">
+    <button type="button" class="rail-nav rail-prev" aria-label="Geser kiri">‹</button>
+    <div class="rail-track">
+    {{range .Indo}}{{template "cinemacard" .}}{{end}}
+    </div>
+    <button type="button" class="rail-nav rail-next" aria-label="Geser kanan">›</button>
+  </div>
+</section>
+{{end}}
+
 {{if .Top}}
 <section class="rail">
   <div class="rail-head"><h2>Rating Tertinggi Sepanjang Masa</h2></div>
