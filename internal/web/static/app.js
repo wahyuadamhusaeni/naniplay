@@ -89,7 +89,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: btn.dataset.delhist })
-      }).then(function () {
+      }).then(function (resp) {
+        if (!resp.ok) return;
         var card = btn.closest(".hist-card");
         if (card) card.remove();
       }).catch(function () {});

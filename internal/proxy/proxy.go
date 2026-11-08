@@ -58,6 +58,13 @@ func guardedTransport() *http.Transport {
 	}
 }
 
+// GuardedClient returns an HTTP client that refuses to dial
+// internal addresses (see guardedTransport). For server-side fetches
+// of URLs that are not fully trusted.
+func GuardedClient(timeout time.Duration) *http.Client {
+	return &http.Client{Timeout: timeout, Transport: guardedTransport()}
+}
+
 // Handler returns the /api/proxy handler. Query params: u (target URL),
 // r (Referer to present to the origin, optional).
 func Handler() http.Handler {

@@ -123,6 +123,7 @@ type Client struct {
 type cacheEntry struct {
 	body []byte
 	at   time.Time
+	ttl  time.Duration
 }
 
 // New returns a ready client.
@@ -215,7 +216,19 @@ func (c *Client) rawQuery(ctx context.Context, key, gql string, vars map[string]
 		return nil, fmt.Errorf("anilist: %s", probe.Errors[0].Message)
 	}
 	c.mu.Lock()
-	c.cache[key] = cacheEntry{body: buf.Bytes(), at: time.Now()}
+	// Keep the cache bounded: drop entries past their own TTL on
+	// every write (keys include arbitrary user search text, so
+	// without eviction the map grows for the life of the process).
+	now := time.Now()
+	for k, e := range c.cache {
+		if now.Sub(e.at) > e.ttl {
+			delete(c.cache, k)
+		}
+	}
+	if len(c.cache) > 2000 {
+		c.cache = make(map[string]cacheEntry)
+	}
+	c.cache[key] = cacheEntry{body: buf.Bytes(), at: now, ttl: ttl}
 	c.mu.Unlock()
 	return buf.Bytes(), nil
 }

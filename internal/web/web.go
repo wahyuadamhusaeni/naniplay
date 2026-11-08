@@ -629,6 +629,7 @@ type watchData struct {
 	baseData
 	PrefQuality  string
 	PrefSubLang  string
+	Hardsub      bool
 	Anime        *anilist.Anime
 	Episode      int
 	CurrentEp    int
@@ -682,6 +683,7 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.ProviderName = providerDisplay(providerName)
+	data.Hardsub = providerName == "otakudesu"
 	data.Episodes = eps
 	var target *source.Episode
 	for i := range eps {
@@ -1182,7 +1184,16 @@ func (s *Server) apiSettingsTest(w http.ResponseWriter, r *http.Request) {
 		// same-host hairpin paths while chat works fine.)
 		key := strings.TrimSpace(body.Key)
 		if key == "" {
-			key = s.db.GetSetting("llm_key")
+			// The stored key may only be used against the stored
+			// endpoint. Falling back to it for an arbitrary base
+			// would mail the user's API key to whoever asks.
+			storedBase := strings.TrimSuffix(s.db.GetSetting("llm_base"), "/")
+			if base == "" {
+				base = storedBase
+			}
+			if strings.TrimSuffix(base, "/") == storedBase {
+				key = s.db.GetSetting("llm_key")
+			}
 		}
 		model := s.db.GetSetting("llm_model")
 		if model == "" {

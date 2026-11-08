@@ -40,6 +40,7 @@
   </form>
 
   <form method="post" action="/pengaturan" class="settings-form">
+    <h3>Sumber Streaming</h3>
     <label for="otakudesu_base">Domain sumber Otakudesu</label>
     <p class="dim small">Sumber streaming kadang berpindah domain. Jika putar berhenti bekerja, isi domain terbarunya di sini — tanpa perlu memasang ulang aplikasi. Kosongkan untuk kembali ke bawaan.</p>
     <div class="settings-row">
@@ -57,7 +58,8 @@
   </form>
 
   <form method="post" action="/pengaturan" class="settings-form">
-    <label>AI Fansub (BYOK) — opsional</label>
+    <h3>AI Fansub (BYOK) — opsional</h3>
+    <label>Model AI</label>
     <p class="dim small">Terjemahkan subtitle dengan model AI pilihanmu lewat endpoint apa pun yang kompatibel dengan OpenAI — OpenAI, OpenRouter, Gemini, Groq, Ollama lokal, atau routermu sendiri (mis. 9router). Hasilnya jauh lebih alami daripada terjemahan mesin. Kunci API hanya disimpan di database NaniPlay di perangkat ini. <strong>Tips:</strong> tempel kunci Gemini (AIza…), Groq (gsk_…), atau OpenAI (sk-…) dengan alamat &amp; model kosong — sisanya terisi otomatis.</p>
     <div class="settings-stack">
       <input type="url" id="llm_base" name="llm_base" value="{{.LLMBase}}" placeholder="Alamat endpoint, mis. https://api.openai.com/v1">

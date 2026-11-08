@@ -8,6 +8,7 @@
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
   {{if .Query}}
     <h2 class="page-h">{{if .Results}}{{len .Results}} hasil untuk{{else}}Hasil untuk{{end}} “{{.Query}}”</h2>
+    {{if .Results}}<h2 class="page-h">🎌 Anime</h2>{{end}}
     <div class="grid">
       {{range .Results}}{{template "card" .}}{{end}}
     </div>

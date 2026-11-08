@@ -506,6 +506,9 @@
     if (subActiveNote) subActiveNote.textContent = name;
   }
   function applySubPref() {
+    // Sumber hardsub (Otakudesu) sudah ber-subtitle Indonesia di dalam
+    // videonya — jangan aktifkan softsub otomatis, nanti teksnya ganda.
+    if (video.dataset.subauto === "off") return;
     if (subManual || subActiveId || subPref === "off" || !subTrackList) return;
     var rows = subTrackList.querySelectorAll(".sub-track");
     for (var i = 0; i < rows.length; i++) {
@@ -607,6 +610,7 @@
   }
   if (subTrackList) {
     loadSubtitles().then(function (data) {
+      if (video.dataset.subauto === "off") return;
       if (!subActiveId && data && data.saved && data.saved.length) {
         activateSub(data.saved[0].id);
       }

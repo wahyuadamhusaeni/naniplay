@@ -15,6 +15,7 @@ import (
 
 	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
 	"github.com/wahyuadamhusaeni/naniplay/internal/idlix"
+	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
 	"github.com/wahyuadamhusaeni/naniplay/internal/subtitle"
@@ -68,7 +69,7 @@ func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, ep
 		if stream.Referer != "" {
 			req.Header.Set("Referer", stream.Referer)
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := proxy.GuardedClient(30 * time.Second).Do(req)
 		if err != nil {
 			cancel()
 			continue
@@ -124,6 +125,16 @@ func mediaKeyEp(r *http.Request) (string, int, bool) {
 }
 
 func (s *Server) saveTrackKey(w http.ResponseWriter, key string, episode int, label, lang, src, content string) {
+	// Idempotent: fetching the same online candidate twice must not
+	// stack duplicate rows in the panel.
+	if existing, err := s.db.SubtitleTracks(key, episode); err == nil {
+		for _, t := range existing {
+			if t.Label == label && t.Source == src {
+				writeJSON(w, http.StatusOK, map[string]any{"id": t.ID, "label": t.Label, "lang": t.Lang, "source": t.Source})
+				return
+			}
+		}
+	}
 	if _, err := subtitle.Parse(content); err != nil {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Isi file tidak terbaca sebagai subtitle: " + err.Error()})
 		return
@@ -380,7 +391,7 @@ func (s *Server) apiSubtitleExternal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Header.Set("User-Agent", "NaniPlay/"+Version)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := proxy.GuardedClient(30 * time.Second).Do(req)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "Gagal mengambil URL: " + err.Error()})
 		return
@@ -497,8 +508,13 @@ func (s *Server) apiSubtitleTranslateAI(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "Fansub AI gagal: " + err.Error()})
 		return
 	}
+	key := track.Key
+	if key == "" {
+		key = store.AnimeKey(track.AnilistID)
+	}
 	newTrack := store.SubtitleTrack{
 		ID:        newTrackID(),
+		Key:       key,
 		AnilistID: track.AnilistID,
 		Episode:   track.Episode,
 		Label:     track.Label + " — Indonesia (AI Fansub)",
@@ -543,8 +559,12 @@ func (s *Server) apiSubtitleTranslate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "Terjemahan gagal: " + err.Error()})
 		return
 	}
+	key := track.Key
+	if key == "" {
+		key = store.AnimeKey(track.AnilistID)
+	}
 	nt := store.SubtitleTrack{
-		ID: newTrackID(), AnilistID: track.AnilistID, Episode: track.Episode,
+		ID: newTrackID(), Key: key, AnilistID: track.AnilistID, Episode: track.Episode,
 		Label: track.Label + " — Indonesia (GTX)", Lang: "id", Source: "gtx",
 		Content: subtitle.ToVTT(translated, 0),
 	}
@@ -560,7 +580,7 @@ func (s *Server) apiSubtitleTranslate(w http.ResponseWriter, r *http.Request) {
 // of the same episode into a new bilingual track.
 func (s *Server) apiSubtitleMerge(w http.ResponseWriter, r *http.Request) {
 	track, err := s.db.SubtitleTrack(r.PathValue("trackID"))
-	if err != nil {
+	if err != nil || track == nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek tidak ditemukan"})
 		return
 	}
@@ -572,7 +592,7 @@ func (s *Server) apiSubtitleMerge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	other, err := s.db.SubtitleTrack(body.OtherID)
-	if err != nil {
+	if err != nil || other == nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek kedua tidak ditemukan"})
 		return
 	}
@@ -599,7 +619,7 @@ func (s *Server) apiSubtitleMerge(w http.ResponseWriter, r *http.Request) {
 // found, saves a corrected copy. The response reports the estimate.
 func (s *Server) apiSubtitleAutosync(w http.ResponseWriter, r *http.Request) {
 	track, err := s.db.SubtitleTrack(r.PathValue("trackID"))
-	if err != nil {
+	if err != nil || track == nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek tidak ditemukan"})
 		return
 	}
@@ -611,8 +631,12 @@ func (s *Server) apiSubtitleAutosync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ref, err := s.db.SubtitleTrack(body.ReferenceID)
-	if err != nil {
+	if err != nil || ref == nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek referensi tidak ditemukan"})
+		return
+	}
+	if ref.Key != track.Key || ref.Episode != track.Episode {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "trek referensi harus dari episode yang sama"})
 		return
 	}
 	refCues, err1 := subtitle.Parse(ref.Content)

@@ -644,3 +644,6 @@ body.no-scroll { overflow: hidden; }
 @media (max-width: 720px) {
   input, select, textarea { font-size: 16px; }
 }
+
+/* v1.6.3: teks alt gambar yang gagal/dilambatkan tidak meluber keluar kotak */
+.card-img img, .sched-row img, .detail-side img { font-size: 0; background: #232323; }

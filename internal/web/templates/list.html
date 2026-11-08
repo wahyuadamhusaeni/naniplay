@@ -8,7 +8,7 @@
     <a class="card" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}"></div>
       <p class="card-title">{{.Title}}</p>
-      {{if .NextLabel}}<p class="next-air">📅 {{.NextLabel}}</p>{{end}}
+      {{if .NextLabel}}<p class="next-air">📅 Berikutnya: {{.NextLabel}}</p>{{end}}
     </a>
     {{end}}
   </div>
@@ -26,7 +26,7 @@
         </div>
         <div class="progress"><i style="width:{{pct .Progress}}%"></i></div>
         <p class="card-title">{{.Title}}</p>
-        {{if .NextLabel}}<p class="next-air">📅 {{.NextLabel}}</p>{{end}}
+        {{if .NextLabel}}<p class="next-air">📅 Berikutnya: {{.NextLabel}}</p>{{end}}
       </a>
       <button type="button" class="hist-del" data-delhist="{{.Key}}" title="Hapus dari riwayat" aria-label="Hapus dari riwayat">✕</button>
     </div>

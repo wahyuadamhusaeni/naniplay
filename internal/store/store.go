@@ -342,9 +342,9 @@ func (s *Store) EpisodeProgress(key string) (map[int]int, error) {
 // first. Deduplication happens in Go so tied timestamps can never
 // surface the same title twice.
 func (s *Store) ContinueWatching(limit int) ([]HistoryEntry, error) {
-	fetch := limit * 5
-	if fetch < 50 {
-		fetch = 50
+	fetch := limit * 50
+	if fetch < 500 {
+		fetch = 500
 	}
 	rows, err := s.db.Query(
 		`SELECT media_key, title, poster, episode, position, duration, updated_at
