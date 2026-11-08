@@ -4,6 +4,15 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.3] — 2026-11-08
+
+### Diubah
+- Mode embed Film Indo kini memakai server **AbyssPlayer** ("ex")
+  bila tersedia: embed-nya tidak terkunci referer (terukur 200 dari
+  referer mana pun, termasuk domain aplikasi) dan pola embed
+  terproksi memang teruji melawannya. Embed JuicyCodes ("dv") tetap
+  menjadi cadangan mode embed dan satu-satunya sumber mode native.
+
 ## [1.9.2] — 2026-11-08
 
 ### Diperbaiki

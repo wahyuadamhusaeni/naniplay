@@ -281,7 +281,18 @@ func (s *Server) playIndo(w http.ResponseWriter, r *http.Request, slug string, s
 	}
 	data.ProxyURL = "/api/indo-proxy?u=" + url.QueryEscape(stream.MasterURL) + "&r=" + url.QueryEscape(chosen.URL)
 	data.Embed = chosen.URL
-	data.EmbedProxy = "/api/indo-embed?u=" + url.QueryEscape(chosen.URL)
+	// Mode embed memakai server AbyssPlayer ("ex") bila ada: embed
+	// JuicyCodes terkunci referer + gerbang token yang agresif,
+	// sedangkan Abyss terbuka dan justru lawan yang terbukti untuk
+	// pola embed terproksi (elka21). Cadangan: embed dv yang sama.
+	embedURL := chosen.URL
+	for _, sv := range kitanonton.ServersForEpisode(servers, ep) {
+		if sv.Type == "ex" {
+			embedURL = sv.URL
+			break
+		}
+	}
+	data.EmbedProxy = "/api/indo-embed?u=" + url.QueryEscape(embedURL)
 	s.render(w, "cinemawatch", data)
 }
 
