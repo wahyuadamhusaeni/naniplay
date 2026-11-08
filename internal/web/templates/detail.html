@@ -1,0 +1,44 @@
+{{define "title"}}{{.Anime.Display}} — NaniPlay{{end}}
+{{define "content"}}
+{{with .Anime}}
+<section class="detail-hero" style="background-image:url('{{if .Banner}}{{.Banner}}{{else}}{{.Cover}}{{end}}')">
+  <div class="hero-shade"></div>
+  <div class="detail-body">
+    <img class="detail-poster" src="{{.Cover}}" alt="{{.Display}}">
+    <div class="detail-info">
+      <h1>{{.Display}}</h1>
+      <p class="hero-meta">
+        {{if .Score}}<span class="score">★ {{.Score}}%</span>{{end}}
+        {{if .SeasonYear}}<span>{{.SeasonYear}}</span>{{end}}
+        {{if .Format}}<span>{{.Format}}</span>{{end}}
+        {{if .Status}}<span>{{.Status}}</span>{{end}}
+        {{if .Studio}}<span>{{.Studio}}</span>{{end}}
+      </p>
+      {{if .Genres}}<p class="genres">{{range .Genres}}<span class="chip">{{.}}</span>{{end}}</p>{{end}}
+      <p class="hero-desc">{{.Description}}</p>
+      <div class="hero-actions">
+        {{if $.Episodes}}<a class="btn btn-play" href="/watch/{{.ID}}/{{(index $.Episodes 0).Number}}">▶&nbsp; Putar Episode {{(index $.Episodes 0).Number}}</a>{{end}}
+        <form method="post" action="/favorites/toggle" class="inline-form">
+          <input type="hidden" name="anilist_id" value="{{.ID}}">
+          <input type="hidden" name="title" value="{{.Display}}">
+          <input type="hidden" name="poster" value="{{.Cover}}">
+          <input type="hidden" name="return" value="/anime/{{.ID}}">
+          <button class="btn btn-ghost" type="submit">{{if $.IsFavorite}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+        </form>
+      </div>
+      {{with $.Continue}}<p class="continue-note">Terakhir: Episode {{.Episode}} — <a href="/watch/{{.AnilistID}}/{{.Episode}}">lanjutkan menonton</a></p>{{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<section class="episodes">
+  <h2>Episode <span class="dim small">{{if .Series}}· {{.Series.Title}} (Otakudesu, Sub Indo){{end}}</span></h2>
+  {{if .SourceErr}}<div class="alert">{{.SourceErr}}</div>{{end}}
+  <div class="ep-grid">
+    {{range .Episodes}}
+    <a class="ep-btn" href="/watch/{{$.Anime.ID}}/{{.Number}}" title="{{.Title}}">{{.Number}}</a>
+    {{end}}
+  </div>
+</section>
+{{end}}
