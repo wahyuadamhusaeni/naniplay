@@ -285,14 +285,18 @@ func (s *Server) playIndo(w http.ResponseWriter, r *http.Request, slug string, s
 	// JuicyCodes terkunci referer + gerbang token yang agresif,
 	// sedangkan Abyss terbuka dan justru lawan yang terbukti untuk
 	// pola embed terproksi (elka21). Cadangan: embed dv yang sama.
-	embedURL := chosen.URL
+	// Mode embed memuat dokumen AbyssPlayer LANGSUNG dari origin-nya:
+	// aplikasinya menolak berjalan dari origin asing (terukur: dokumen
+	// utuh yang disajikan lewat proxy pun menjawab "Slug is not
+	// found", sementara dokumennya sendiri tidak terkunci referer).
+	// Tanpa server Abyss, jatuh ke embed JuicyCodes terproksi.
+	data.EmbedProxy = "/api/indo-embed?u=" + url.QueryEscape(chosen.URL)
 	for _, sv := range kitanonton.ServersForEpisode(servers, ep) {
 		if sv.Type == "ex" {
-			embedURL = sv.URL
+			data.EmbedProxy = sv.URL
 			break
 		}
 	}
-	data.EmbedProxy = "/api/indo-embed?u=" + url.QueryEscape(embedURL)
 	s.render(w, "cinemawatch", data)
 }
 

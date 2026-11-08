@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -130,7 +129,6 @@ func embedNetPatch(origin, docURL string) string {
 func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	raw := r.URL.Query().Get("src")
 	ref := r.URL.Query().Get("ref")
-	log.Printf("[indo-raw-in] %s src=%q ref=%q", r.Method, raw, ref)
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || !publicEmbedHost(u.Hostname()) {
 		http.Error(w, "URL tidak diizinkan", http.StatusBadRequest)
@@ -192,7 +190,6 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	for _, ck := range resp.Header["Set-Cookie"] {
 		w.Header().Add("Set-Cookie", rewriteEmbedCookie(ck))
 	}
-	log.Printf("[indo-raw] %s %s%s -> %d %s (ref %s)", r.Method, u.Scheme+"://"+u.Host, u.Path, status, ctype, referer)
 	br := bufio.NewReader(body)
 	isPlaylist := strings.Contains(ctype, "mpegurl")
 	if !isPlaylist {
@@ -271,37 +268,4 @@ func rewriteEmbedCookie(ck string) string {
 		}
 	}
 	return strings.Join(out, "; ") + "; Path=/"
-}
-
-// --- Diagnostik sementara (v1.9.9): embed murni tanpa penulisan ulang ---
-
-// indoPureWrap serves a bare page whose only content is an iframe
-// pointing at the untouched upstream document.
-func (s *Server) indoPureWrap(w http.ResponseWriter, r *http.Request) {
-	u := r.URL.Query().Get("u")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	fmt.Fprintf(w, `<!doctype html><html><body style="margin:0;background:#000"><iframe src="/api/indo-pure-doc?u=%s" style="width:100vw;height:100vh;border:0" allowfullscreen allow="autoplay; fullscreen; encrypted-media"></iframe></body></html>`, url.QueryEscape(u))
-}
-
-// indoPureDoc fetches the embed document and serves it byte for
-// byte: no URL rewriting, no netPatch. All of the app's own requests
-// then go directly from the browser to the upstream hosts.
-func (s *Server) indoPureDoc(w http.ResponseWriter, r *http.Request) {
-	raw := r.URL.Query().Get("u")
-	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || !publicEmbedHost(u.Hostname()) {
-		http.Error(w, "URL tidak diizinkan", http.StatusBadRequest)
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-	body, err := s.kita.FetchEmbedDoc(ctx, raw)
-	if err != nil {
-		http.Error(w, "Dokumen embed tidak terjangkau: "+err.Error(), http.StatusBadGateway)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-cache")
-	_, _ = w.Write([]byte(body))
 }

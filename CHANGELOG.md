@@ -4,6 +4,21 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.10.0] — 2026-11-08
+
+### Diubah
+- Mode embed Film Indo kini memuat dokumen AbyssPlayer **langsung
+  dari origin-nya** (iframe ke URL embed asli). Terukur bersih:
+  aplikasi player-v2 Abyss menolak berjalan dari origin asing —
+  dokumen utuh tanpa campur tangan proxy pun menjawab "Slug is not
+  found" — sedangkan dokumennya sendiri tidak terkunci referer
+  (200 dari referer mana pun, termasuk domain aplikasi). Ini
+  mereproduksi persis konteks embed di situs sumber. Judul tanpa
+  server Abyss tetap memakai embed JuicyCodes terproksi.
+
+### Dihapus
+- Endpoint + log diagnostik sementara seri 1.9.5–1.9.9.
+
 ## [1.9.9] — 2026-11-08
 
 ### Ditambah
