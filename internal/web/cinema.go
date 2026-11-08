@@ -338,7 +338,8 @@ type cinemaWatchData struct {
 	Back        string
 	BackText    string
 	ProxyURL    string
-	CdnToken    string // Film Indo only: viewer identity token for direct-CDN playback
+	Embed       string // Film Indo only: native embed URL (fallback player)
+	CdnToken    string // legacy: viewer identity token for direct-CDN playback
 	Episode     int    // encoded (series: season*1000+episode; movie: 1)
 	SavedPos    float64
 	Next        string

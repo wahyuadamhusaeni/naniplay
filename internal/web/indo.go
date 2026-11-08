@@ -280,6 +280,7 @@ func (s *Server) playIndo(w http.ResponseWriter, r *http.Request, slug string, s
 		return
 	}
 	data.ProxyURL = "/api/indo-proxy?u=" + url.QueryEscape(stream.MasterURL) + "&r=" + url.QueryEscape(chosen.URL)
+	data.Embed = chosen.URL
 	s.render(w, "cinemawatch", data)
 }
 

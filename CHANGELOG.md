@@ -4,6 +4,16 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.8.2] — 2026-11-08
+
+### Ditambahkan
+- **Mode Server Embed (player asli) di halaman putar Film Indo** —
+  saklar di bawah pemutar membuka embed JuicyCodes asli di dalam
+  iframe (sandbox tanpa pop-up) untuk keadaan ketika jalur proxy
+  ditolak CDN sumber. Mode ini memakai player mereka apa adanya:
+  iklan & kontrol dari mereka, subtitle/resume NaniPlay tidak
+  berlaku. Player NaniPlay (proxy) tetap menjadi bawaan.
+
 ## [1.8.1] — 2026-11-08
 
 ### Diubah
