@@ -24,6 +24,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 )
 
 var (
@@ -135,13 +137,28 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	if pu, err := url.Parse(ref); err != nil || (pu.Scheme != "https" && pu.Scheme != "http") {
 		referer = s.kita.Base() + "/"
 	}
+	// Ambil upstream persis seperti route player elka21 yang terbukti:
+	// klien polos (tanpa sidik jari TLS khusus), UA Chrome/120, dan
+	// hanya Referer. Tumpukan header browser penuh + Origin yang
+	// dipakai mode native justru ditolak gerbang CDN untuk rantai ini.
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	status, ctype, body, err := s.kita.FetchStream(ctx, raw, referer, r.Header.Get("Range"))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+	if err != nil {
+		http.Error(w, "URL tidak valid", http.StatusBadRequest)
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Referer", referer)
+	if rng := r.Header.Get("Range"); rng != "" {
+		req.Header.Set("Range", rng)
+	}
+	resp, err := proxy.GuardedClient(60 * time.Second).Do(req)
 	if err != nil {
 		http.Error(w, "Upstream tidak terjangkau: "+err.Error(), http.StatusBadGateway)
 		return
 	}
+	status, ctype, body := resp.StatusCode, resp.Header.Get("Content-Type"), resp.Body
 	defer body.Close()
 	br := bufio.NewReader(body)
 	isPlaylist := strings.Contains(ctype, "mpegurl")

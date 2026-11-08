@@ -4,6 +4,14 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.1] — 2026-11-08
+
+### Diubah
+- Pengambilan upstream pada mode embed terproksi kini meniru persis
+  profil route player elka21 yang terbukti: klien HTTP polos (tanpa
+  sidik jari TLS khusus), User-Agent Chrome/120, dan hanya header
+  Referer — tanpa Origin dan tanpa tumpukan header sec-*.
+
 ## [1.9.0] — 2026-11-08
 
 ### Ditambahkan
