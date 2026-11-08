@@ -45,7 +45,7 @@ publik situs sumber yang dipelajari, bukan kode proyek lain.
 
 - [x] Ambil subtitle dari OpenSubtitles (tanpa API key); parser SRT/WebVTT/ASS → WebVTT
 - [ ] AnimeTosho — **tertunda**: lampiran subtitle upstream sedang rusak (tautan unduh resmi mereka sendiri membalas 404 per 2026-11-08, terverifikasi dari dua jaringan); tinjau ulang berkala
-- [ ] Merge multi-sumber dengan prioritas (bawaan → komunitas → AI) — *parsial: prioritas & pilihan sumber sudah ada; penggabungan isi dua track menjadi satu belum*
+- [x] Merge multi-sumber dengan prioritas (bawaan → komunitas → AI) — *prioritas & pilihan sumber ada sejak Fase 2/3; penggabungan isi dua trek menjadi satu trek dwibahasa selesai di v1.0.0*
 - [x] Koreksi desync manual (offset ±0,5s di pemutar); otomatis belum
 - [x] Pilihan track subtitle di pemutar + unggah file + ambil dari URL
 
