@@ -1,8 +1,9 @@
 # Rencana Pengembangan NaniPlay
 
 Produk: pemutar & agregator anime, film, dan series subtitle Indonesia,
-**Web (self-hosted) + Windows**, satu aplikasi Go. Android menyusul sebagai
-konsumen API yang sama.
+**Web (self-hosted, mobile & desktop) + Windows**, satu aplikasi Go.
+Mode TV dan aplikasi Android **tidak direncanakan** (keputusan
+2026-11-08) — fokus penuh ke pengalaman web & Windows.
 
 Sejak keputusan 2026-11-08, NaniPlay adalah SATU aplikasi untuk anime
 (AniList + banyak sumber) DAN film/series (katalog IDLIX) — satu web,
@@ -65,7 +66,6 @@ publik situs sumber yang dipelajari, bukan kode proyek lain.
 - [x] Jelajah genre (daftar per genre AniList + penomoran halaman) *(v0.8.0)*
 - [x] Pemain kustom (menu kualitas, PiP, pintasan keyboard), pemilihan sumber manual, pemilih episode cerdas, drawer mobile *(v0.8.0, masukan pengguna)*
 - [ ] Episode mendatang untuk anime di Daftar Saya/Riwayat
-- [ ] Mode TV (navigasi D-pad) di web
 
 ## Fase 5 — Sinema: Gabung Film & Series IDLIX *(keputusan 2026-11-08)*
 
@@ -121,14 +121,14 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Pencarian gabungan (anime + film + series dalam satu hasil) *(v0.12.0)*
 - [x] Hero & rail campuran di beranda; halaman genre film *(v0.12.0)*
 
-### v1.0.0 — Mode TV & penyempurnaan
+### v1.0.0 — Penyempurnaan
 
-- [ ] Mode TV di web: navigasi D-pad, fokus membesar/bercahaya pada kartu
-      (ide tata letak TV diadopsi bersih dari aplikasi TV komunitas)
 - [ ] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)*
 - [ ] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis
 
-## Nanti
+## Nanti (belum terjadwal)
 
-- [ ] Android (konsumen API yang sama)
 - [ ] Sinkronisasi antar perangkat (opsional, self-hosted)
+
+Di luar rencana (keputusan 2026-11-08): mode TV dan aplikasi Android —
+tidak dikerjakan kecuali pemilik memutuskan sebaliknya.
