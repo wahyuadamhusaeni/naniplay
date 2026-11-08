@@ -19,6 +19,7 @@ import (
 	"github.com/wahyuadamhusaeni/naniplay/internal/aniskip"
 	"github.com/wahyuadamhusaeni/naniplay/internal/proxy"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
+	"github.com/wahyuadamhusaeni/naniplay/internal/source/anichan"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/hianime"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source/otakudesu"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
@@ -36,6 +37,7 @@ type Server struct {
 	aniskip   *aniskip.Client
 	otaku     *otakudesu.Client
 	hi        *hianime.Client
+	ani       *anichan.Client
 	providers map[string]source.Provider
 	db        *store.Store
 	tpl       map[string]*template.Template
@@ -55,22 +57,29 @@ type matchEntry struct {
 	at       time.Time
 }
 
-// New builds a Server. A saved otakudesu_base setting overrides the
-// configured default, so a source domain change never needs a rebuild.
-func New(db *store.Store, otakuBase string) (*Server, error) {
+// New builds a Server. Saved otakudesu_base / hianime_base settings
+// override the configured defaults, so a source domain change never
+// needs a rebuild.
+func New(db *store.Store, otakuBase, hiBase string) (*Server, error) {
 	if saved := db.GetSetting("otakudesu_base"); saved != "" {
 		otakuBase = saved
 	}
+	if saved := db.GetSetting("hianime_base"); saved != "" {
+		hiBase = saved
+	}
 	otaku := otakudesu.New(otakuBase)
-	hi := hianime.New("")
+	hi := hianime.New(hiBase)
+	ani := anichan.New("")
 	s := &Server{
 		anilist: anilist.New(),
 		aniskip: aniskip.New(),
 		otaku:   otaku,
 		hi:      hi,
+		ani:     ani,
 		providers: map[string]source.Provider{
 			otaku.Name(): otaku,
 			hi.Name():    hi,
+			ani.Name():   ani,
 		},
 		db:       db,
 		tpl:      map[string]*template.Template{},
@@ -267,6 +276,11 @@ func (s *Server) matchEpisodes(ctx context.Context, a *anilist.Anime) (*source.S
 	if err != nil || series == nil {
 		series, eps, err = s.hi.Match(ctx, titles, a.Episodes)
 		provider = s.hi.Name()
+	}
+	if err != nil || series == nil {
+		// AniChan is keyed by AniList ID: no title guessing involved.
+		series, eps, err = s.ani.Lookup(ctx, a.ID, a.Title.Romaji, a.Episodes)
+		provider = s.ani.Name()
 	}
 	if err != nil || series == nil {
 		return nil, nil, ""

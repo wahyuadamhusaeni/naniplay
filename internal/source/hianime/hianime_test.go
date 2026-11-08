@@ -12,6 +12,8 @@ import (
 	"testing"
 )
 
+var _ = http.MethodGet // httptest handlers use the default method
+
 func TestMegaDecryptRoundtrip(t *testing.T) {
 	plain := []byte(`{"file":"https://cdn.example/master.m3u8"}`)
 	pad := aes.BlockSize - len(plain)%aes.BlockSize
@@ -80,6 +82,30 @@ func TestSearchAndEpisodes(t *testing.T) {
 	}
 	if len(eps) != 2 || eps[0].Number != 1 || !strings.Contains(eps[0].URL, "ep=9227") {
 		t.Errorf("episode salah: %+v", eps)
+	}
+}
+
+func TestResolveLegacyZoko(t *testing.T) {
+	cfg := `{"src":"https://cdn.example/master.m3u8","subtitles":[{"src":"https://cdn.example/en.vtt","label":"English"}]}`
+	xored := make([]byte, len(cfg))
+	for i := 0; i < len(cfg); i++ {
+		xored[i] = cfg[i] ^ legacyXORKey[i%len(legacyXORKey)]
+	}
+	blob := base64.StdEncoding.EncodeToString(xored)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `<html><script>window.__P = "%s";</script></html>`, blob)
+	}))
+	defer srv.Close()
+	c := New("")
+	stream, err := c.resolveLegacy(context.Background(), serverEntry{name: "ZokoAnime", embed: srv.URL + "/stream/mal/1/1/sub"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stream.MasterURL != "https://cdn.example/master.m3u8" {
+		t.Errorf("master salah: %q", stream.MasterURL)
+	}
+	if len(stream.Subtitles) != 1 || stream.Subtitles[0].Lang != "en" {
+		t.Errorf("track legacy salah: %+v", stream.Subtitles)
 	}
 }
 

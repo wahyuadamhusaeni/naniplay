@@ -361,22 +361,121 @@ func (c *Client) Resolve(ctx context.Context, episodeURL string) (*source.Stream
 		return nil, fmt.Errorf("tidak ada server sub di HiAnime untuk episode ini")
 	}
 	var lastErr error
-	triedMega := false
 	for _, srv := range servers {
 		if !strings.Contains(srv.embed, "megaplay") {
 			continue
 		}
-		triedMega = true
 		stream, err := c.resolveMegaplay(ctx, srv)
 		if err == nil {
 			return stream, nil
 		}
 		lastErr = err
 	}
-	if !triedMega {
-		return nil, fmt.Errorf("hanya server lama (ZokoAnime) yang tersedia — belum didukung")
+	// Legacy embeds (ZokoAnime / Vidtube) carry their whole player
+	// config in an XOR-obfuscated blob — try them after Megaplay.
+	for _, srv := range servers {
+		if strings.Contains(srv.embed, "megaplay") {
+			continue
+		}
+		stream, err := c.resolveLegacy(ctx, srv)
+		if err == nil {
+			return stream, nil
+		}
+		lastErr = err
 	}
-	return nil, fmt.Errorf("semua server Megaplay gagal: %w", lastErr)
+	if lastErr != nil {
+		return nil, fmt.Errorf("semua server HiAnime gagal: %w", lastErr)
+	}
+	return nil, fmt.Errorf("tidak ada server yang bisa dipakai untuk episode ini")
+}
+
+var legacyBlobRe = regexp.MustCompile(`window\.__P\s*=\s*"([^"]*)"`)
+var legacyXORKey = []byte("otaku-embed-v1")
+
+type legacyConfig struct {
+	Src     string `json:"src"`
+	Sources []struct {
+		Src string `json:"src"`
+	} `json:"sources"`
+	Subtitles []struct {
+		Src   string `json:"src"`
+		File  string `json:"file"`
+		URL   string `json:"url"`
+		Label string `json:"label"`
+		Lang  string `json:"lang"`
+	} `json:"subtitles"`
+}
+
+// resolveLegacy resolves ZokoAnime-style embeds: the page's
+// window.__P blob is base64 + a repeating XOR key away from the
+// player config JSON (master playlist + subtitle tracks).
+func (c *Client) resolveLegacy(ctx context.Context, srv serverEntry) (*source.Stream, error) {
+	page, err := c.fetch(ctx, srv.embed, c.base+"/")
+	if err != nil {
+		return nil, err
+	}
+	if strings.Contains(page, "<title>Player</title>") && strings.Contains(page, "Not ") && strings.Contains(page, "found.") {
+		return nil, fmt.Errorf("server melaporkan anime tidak ditemukan (404)")
+	}
+	m := legacyBlobRe.FindStringSubmatch(page)
+	if m == nil {
+		return nil, fmt.Errorf("blob konfigurasi (window.__P) tidak ditemukan")
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(m[1]))
+	if err != nil {
+		return nil, fmt.Errorf("blob konfigurasi bukan base64")
+	}
+	plain := make([]byte, len(raw))
+	for i, b := range raw {
+		plain[i] = b ^ legacyXORKey[i%len(legacyXORKey)]
+	}
+	var cfg legacyConfig
+	if err := json.Unmarshal(plain, &cfg); err != nil {
+		return nil, fmt.Errorf("konfigurasi legacy tidak terbaca")
+	}
+	master := cfg.Src
+	if master == "" && len(cfg.Sources) > 0 {
+		master = cfg.Sources[0].Src
+	}
+	if !strings.Contains(master, ".m3u8") {
+		return nil, fmt.Errorf("konfigurasi legacy tidak membawa master m3u8")
+	}
+	origin := srv.embed
+	if u, err := url.Parse(srv.embed); err == nil {
+		origin = u.Scheme + "://" + u.Host
+	}
+	tracks := []source.SubTrack{}
+	for _, t := range cfg.Subtitles {
+		trackURL := t.Src
+		if trackURL == "" {
+			trackURL = t.File
+		}
+		if trackURL == "" {
+			trackURL = t.URL
+		}
+		if strings.HasPrefix(trackURL, "/") {
+			trackURL = origin + trackURL
+		}
+		if !strings.HasPrefix(trackURL, "http") {
+			continue
+		}
+		label := t.Label
+		if label == "" {
+			label = t.Lang
+		}
+		if label == "" {
+			label = "Subtitle"
+		}
+		tracks = append(tracks, source.SubTrack{Label: label, Lang: langFromLabel(label), URL: trackURL})
+	}
+	return &source.Stream{
+		MasterURL: master,
+		Referer:   origin + "/",
+		Server:    "HiAnime · " + srv.name,
+		SubLang:   "Softsub bawaan (bisa diterjemahkan)",
+		Subtitles: tracks,
+		SubSource: "HiAnime",
+	}, nil
 }
 
 var dataIDRe = regexp.MustCompile(`data-id="(\d+)"`)
@@ -483,6 +582,7 @@ func (c *Client) resolveMegaplay(ctx context.Context, srv serverEntry) (*source.
 		Server:    "HiAnime · " + srv.name,
 		SubLang:   "Softsub bawaan (bisa diterjemahkan)",
 		Subtitles: tracks,
+		SubSource: "HiAnime",
 	}, nil
 }
 

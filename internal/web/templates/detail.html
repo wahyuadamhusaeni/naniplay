@@ -50,7 +50,7 @@
 {{end}}
 
 <section class="episodes">
-  <h2>Episode <span class="dim small">{{if .Series}}· {{.Series.Title}} ({{.Series.Source}}{{if eq .Series.Source "HiAnime"}} — softsub, terjemahkan di pemutar{{else}}, Sub Indo{{end}}){{end}}</span></h2>
+  <h2>Episode <span class="dim small">{{if .Series}}· {{.Series.Title}} ({{.Series.Source}}{{if eq .Series.Source "Otakudesu"}}, Sub Indo{{else}} — softsub, terjemahkan di pemutar{{end}}){{end}}</span></h2>
   {{if .SourceErr}}<div class="alert">{{.SourceErr}}</div>{{end}}
   <div class="ep-grid">
     {{range .Episodes}}

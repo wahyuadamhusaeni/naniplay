@@ -14,6 +14,7 @@ type Config struct {
 	Port      int    // APP_PORT, default 8080
 	DataDir   string // NANIPLAY_DATA, default ./data
 	OtakuBase string // OTAKU_BASE, default https://ww2.otakudesu.biz
+	HiBase    string // HIANIME_BASE, default https://hianime.at
 	NoOpen    bool   // NANIPLAY_NO_OPEN=1 disables auto-opening the browser
 }
 
@@ -43,6 +44,7 @@ func Load() Config {
 		Port:      port,
 		DataDir:   dataDir,
 		OtakuBase: strings.TrimRight(getenv("OTAKU_BASE", "https://ww2.otakudesu.biz"), "/"),
+		HiBase:    strings.TrimRight(getenv("HIANIME_BASE", "https://hianime.at"), "/"),
 		NoOpen:    os.Getenv("NANIPLAY_NO_OPEN") == "1",
 	}
 }

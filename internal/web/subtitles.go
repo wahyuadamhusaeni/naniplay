@@ -29,13 +29,18 @@ import (
 // selectable in the player and translatable via GTX. Tracks already
 // imported for the episode are not fetched again.
 func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, episode int, stream *source.Stream) {
+	srcName := stream.SubSource
+	if srcName == "" {
+		srcName = "HiAnime"
+	}
+	srcKey := strings.ToLower(srcName)
 	existing, err := s.db.SubtitleTracks(a.ID, episode)
 	if err != nil {
 		return
 	}
 	have := map[string]bool{}
 	for _, t := range existing {
-		if t.Source == "hianime" {
+		if t.Source == srcKey {
 			have[t.Label] = true
 		}
 	}
@@ -48,7 +53,7 @@ func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, ep
 		if imported >= 4 {
 			break
 		}
-		label := "HiAnime · " + tr.Label
+		label := srcName + " · " + tr.Label
 		if have[label] {
 			continue
 		}
@@ -79,7 +84,7 @@ func (s *Server) importStreamSubtitles(ctx context.Context, a *anilist.Anime, ep
 		}
 		_ = s.db.SaveSubtitleTrack(store.SubtitleTrack{
 			ID: newTrackID(), AnilistID: a.ID, Episode: episode,
-			Label: label, Lang: tr.Lang, Source: "hianime", Content: text,
+			Label: label, Lang: tr.Lang, Source: srcKey, Content: text,
 		})
 		imported++
 	}

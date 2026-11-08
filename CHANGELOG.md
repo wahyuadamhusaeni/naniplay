@@ -4,6 +4,25 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.6.0] - 2026-11-08
+
+### Ditambahkan
+- **Sumber ketiga: AniChan** — melengkapi rantai fallback menjadi
+  Otakudesu → HiAnime → AniChan, persis urutan ekosistem
+  Tatap/Shisen. AniChan berkunci ID AniList (tanpa menebak judul):
+  sesi + triple kunci yang di-scrape otomatis dari bundle JS situs
+  (kuncinya berotasi; nilai statis bawaan aplikasi hanya cadangan),
+  payload daftar server terdekripsi AES-256-GCM (kunci diturunkan
+  via HMAC-SHA256 dari token sesi), hanya server HLS langsung yang
+  dipakai, dan subtitle bawaannya terimpor seperti HiAnime.
+- **Server lama ZokoAnime di HiAnime** — embed lama yang membawa
+  konfigurasi player dalam blob base64+XOR kini bisa di-resolve,
+  jadi judul yang hanya punya server itu tetap bisa diputar.
+
+### Diubah
+- Domain HiAnime kini bisa diatur lewat env `HIANIME_BASE` atau
+  pengaturan `hianime_base`, sama seperti Otakudesu.
+
 ## [0.5.0] - 2026-11-08
 
 ### Ditambahkan
@@ -102,6 +121,7 @@ versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 - Satu binary Go untuk Web (self-hosted) dan Windows (portable, membuka browser).
 - Workflow rilis GitHub Actions: zip Windows + tarball Linux per tag versi.
 
+[0.6.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.6.0
 [0.5.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.5.0
 [0.4.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.4.0
 [0.3.0]: https://github.com/wahyuadamhusaeni/naniplay/releases/tag/v0.3.0

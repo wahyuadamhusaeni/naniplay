@@ -35,6 +35,7 @@ type Stream struct {
 	Server    string     `json:"server"`    // human label, e.g. "Otakudesu (Sub Indo)"
 	SubLang   string     `json:"subLang"`   // subtitle note, e.g. "Indonesian (Hardsub)"
 	Subtitles []SubTrack `json:"subtitles,omitempty"`
+	SubSource string     `json:"subSource,omitempty"` // display name of the subtitle provider, e.g. "HiAnime"
 }
 
 // Provider is the contract every streaming source implements.
