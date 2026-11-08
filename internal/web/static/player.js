@@ -229,8 +229,26 @@
       syncPlayUI(); pokeUI();
     });
     video.addEventListener("pause", function () { syncPlayUI(); pokeUI(); });
-    video.addEventListener("click", function () { togglePlay(); });
-    video.addEventListener("dblclick", function () { toggleFull(); });
+    // Klik/ketuk di area video TIDAK play/pause (itu tugas tombol
+    // play): sekali klik hanya tampil/sembunyi kontrol, dua kali
+    // klik = layar penuh. Timer membedakan klik tunggal vs ganda.
+    var stageClickTimer = null;
+    box.addEventListener("click", function (e) {
+      if (e.target !== video && e.target !== box) return;
+      if (stageClickTimer) {
+        clearTimeout(stageClickTimer);
+        stageClickTimer = null;
+        toggleFull();
+        return;
+      }
+      stageClickTimer = setTimeout(function () {
+        stageClickTimer = null;
+        if (box.classList.contains("ui-on")) {
+          box.classList.remove("ui-on");
+          clearTimeout(uiTimer);
+        } else pokeUI();
+      }, 280);
+    });
     video.addEventListener("waiting", function () { if (pSpinner) pSpinner.hidden = false; });
     video.addEventListener("playing", function () { if (pSpinner) pSpinner.hidden = true; });
     video.addEventListener("canplay", function () { if (pSpinner) pSpinner.hidden = true; });
@@ -238,7 +256,6 @@
       if (pFullIco) pFullIco.setAttribute("href", document.fullscreenElement ? "#i-full-exit" : "#i-full");
     });
     box.addEventListener("mousemove", pokeUI);
-    box.addEventListener("touchstart", pokeUI, { passive: true });
     pPlay.addEventListener("click", togglePlay);
     if (pBigPlay) pBigPlay.addEventListener("click", togglePlay);
     if (pBack10) pBack10.addEventListener("click", function () {
