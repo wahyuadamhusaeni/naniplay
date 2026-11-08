@@ -113,3 +113,58 @@ func TestRatingFlexible(t *testing.T) {
 		}
 	}
 }
+
+// flowFetcher serves the playback conversation from canned responses.
+type flowFetcher struct {
+	gets  map[string]string
+	posts map[string]string
+}
+
+func (f *flowFetcher) Get(ctx context.Context, rawURL string) (int, []byte, error) {
+	for path, body := range f.gets {
+		if strings.Contains(rawURL, path) {
+			return 200, []byte(body), nil
+		}
+	}
+	return 404, []byte(`{"message":"not found"}`), nil
+}
+
+func (f *flowFetcher) PostJSON(ctx context.Context, fullURL string, body []byte, headers map[string]string) (int, []byte, error) {
+	for path, respBody := range f.posts {
+		if strings.Contains(fullURL, path) {
+			return 200, []byte(respBody), nil
+		}
+	}
+	return 500, []byte(`{}`), nil
+}
+
+func TestResolvePlaybackFlow(t *testing.T) {
+	// gate token segment: {"owner":"d:device42"} dalam base64url
+	seg := "eyJvd25lciI6ImQ6ZGV2aWNlNDIifQ"
+	ff := &flowFetcher{
+		gets: map[string]string{
+			"/api/watch/play-info/movie/abc": `{"gateToken":"` + seg + `.x.y","serverNow":1000,"unlockAt":1000}`,
+		},
+		posts: map[string]string{
+			"/api/watch/session/claim":      `{"kind":"pentos","claim":"clm-1","redeemUrl":"https://host.example/api/play","title":"Film Uji","durationSec":5400}`,
+			"https://host.example/api/play": `{"url":"https://cdn.example/master.m3u8","subtitles":[{"lang":"en","label":"English","path":"https://cdn.example/en.vtt"}]}`,
+		},
+	}
+	c := NewWithFetcher("https://idlix.example", ff)
+	pb, err := c.ResolvePlayback(context.Background(), "movie", "abc")
+	if err != nil {
+		t.Fatalf("ResolvePlayback: %v", err)
+	}
+	if pb.MasterURL != "https://cdn.example/master.m3u8" || pb.Title != "Film Uji" || len(pb.Subtitles) != 1 {
+		t.Fatalf("playback salah: %+v", pb)
+	}
+}
+
+func TestGateDID(t *testing.T) {
+	if got := gateDID("eyJvd25lciI6ImQ6ZGV2aWNlNDIifQ.x.y"); got != "did=device42" {
+		t.Fatalf("gateDID = %q", got)
+	}
+	if got := gateDID("bukan-token"); got != "" {
+		t.Fatalf("gateDID token rusak = %q, mau kosong", got)
+	}
+}

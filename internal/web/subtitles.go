@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/wahyuadamhusaeni/naniplay/internal/anilist"
+	"github.com/wahyuadamhusaeni/naniplay/internal/idlix"
 	"github.com/wahyuadamhusaeni/naniplay/internal/source"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
 	"github.com/wahyuadamhusaeni/naniplay/internal/subtitle"
@@ -101,9 +102,36 @@ func (s *Server) saveTrack(w http.ResponseWriter, anilistID, episode int, label,
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Isi file tidak terbaca sebagai subtitle: " + err.Error()})
 		return
 	}
+	s.saveTrackKey(w, store.AnimeKey(anilistID), episode, label, lang, source, content)
+}
+
+// mediaKeyEp resolves the media key + episode for both route
+// families: /api/subtitles/{id}/{ep} (anime) and
+// /api/subtitles/k/{key}/{ep} (any media key, e.g. movie:/series:).
+func mediaKeyEp(r *http.Request) (string, int, bool) {
+	ep, err := strconv.Atoi(r.PathValue("ep"))
+	if err != nil {
+		return "", 0, false
+	}
+	if k := r.PathValue("key"); k != "" {
+		return k, ep, true
+	}
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		return "", 0, false
+	}
+	return store.AnimeKey(id), ep, true
+}
+
+func (s *Server) saveTrackKey(w http.ResponseWriter, key string, episode int, label, lang, src, content string) {
+	if _, err := subtitle.Parse(content); err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "Isi file tidak terbaca sebagai subtitle: " + err.Error()})
+		return
+	}
+	anilistID, _ := store.ParseAnimeKey(key)
 	t := store.SubtitleTrack{
-		ID: newTrackID(), AnilistID: anilistID, Episode: episode,
-		Label: label, Lang: lang, Source: source, Content: content,
+		ID: newTrackID(), Key: key, AnilistID: anilistID, Episode: episode,
+		Label: label, Lang: lang, Source: src, Content: content,
 	}
 	if err := s.db.SaveSubtitleTrack(t); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
@@ -112,23 +140,86 @@ func (s *Server) saveTrack(w http.ResponseWriter, anilistID, episode int, label,
 	writeJSON(w, http.StatusOK, map[string]any{"id": t.ID, "label": t.Label, "lang": t.Lang, "source": t.Source})
 }
 
+// importCinemaSubtitles downloads the subtitle files a resolved
+// cinema stream offers into the store under the media key, so the
+// player panel (and GTX/AI translation) works exactly like anime.
+func (s *Server) importCinemaSubtitles(ctx context.Context, key string, episode int, subs []idlix.SubFile) {
+	if len(subs) == 0 {
+		return
+	}
+	existing, _ := s.db.SubtitleTracks(key, episode)
+	seen := map[string]bool{}
+	for _, t := range existing {
+		if t.Source == "majorplay" {
+			seen[t.Label] = true
+		}
+	}
+	client := &http.Client{Timeout: 25 * time.Second}
+	imported := 0
+	for _, sub := range subs {
+		if imported >= 4 || sub.Path == "" {
+			continue
+		}
+		label := sub.Label
+		if label == "" {
+			label = sub.Lang
+		}
+		if label == "" || seen[label] {
+			continue
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, sub.Path, nil)
+		if err != nil {
+			continue
+		}
+		req.Header.Set("User-Agent", "NaniPlay/"+Version)
+		resp, err := client.Do(req)
+		if err != nil || resp.StatusCode != 200 {
+			if resp != nil {
+				resp.Body.Close()
+			}
+			continue
+		}
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+		resp.Body.Close()
+		if err != nil {
+			continue
+		}
+		text := strings.TrimSpace(string(raw))
+		if _, err := subtitle.Parse(text); err != nil {
+			continue
+		}
+		anilistID, _ := store.ParseAnimeKey(key)
+		t := store.SubtitleTrack{
+			ID: newTrackID(), Key: key, AnilistID: anilistID, Episode: episode,
+			Label: label, Lang: sub.Lang, Source: "majorplay", Content: text,
+		}
+		if err := s.db.SaveSubtitleTrack(t); err == nil {
+			seen[label] = true
+			imported++
+		}
+	}
+}
+
 // apiSubtitleList returns saved tracks for an episode; with
 // ?q=online it also searches OpenSubtitles (no API key needed).
 func (s *Server) apiSubtitleList(w http.ResponseWriter, r *http.Request) {
-	anilistID, err1 := strconv.Atoi(r.PathValue("id"))
-	episode, err2 := strconv.Atoi(r.PathValue("ep"))
-	if err1 != nil || err2 != nil {
+	key, episode, ok := mediaKeyEp(r)
+	if !ok {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
 		return
 	}
-	saved, err := s.db.SubtitleTracks(store.AnimeKey(anilistID), episode)
+	saved, err := s.db.SubtitleTracks(key, episode)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	resp := map[string]any{"saved": saved}
 	if r.URL.Query().Get("q") == "online" {
-		resp["results"] = s.searchOnlineSubtitles(r.Context(), anilistID, episode)
+		if anilistID, isAnime := store.ParseAnimeKey(key); isAnime {
+			resp["results"] = s.searchOnlineSubtitles(r.Context(), anilistID, episode)
+		} else {
+			resp["results"] = []subtitle.Candidate{}
+		}
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -174,10 +265,13 @@ func (s *Server) searchOnlineSubtitles(ctx context.Context, anilistID, episode i
 
 // apiSubtitleFetch downloads one online candidate and saves it.
 func (s *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request) {
-	anilistID, err1 := strconv.Atoi(r.PathValue("id"))
-	episode, err2 := strconv.Atoi(r.PathValue("ep"))
-	if err1 != nil || err2 != nil {
+	key, episode, ok := mediaKeyEp(r)
+	if !ok {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
+		return
+	}
+	if _, isAnime := store.ParseAnimeKey(key); !isAnime {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Pencarian online hanya untuk anime"})
 		return
 	}
 	var body struct {
@@ -205,14 +299,13 @@ func (s *Server) apiSubtitleFetch(w http.ResponseWriter, r *http.Request) {
 	if label == "" {
 		label = "OpenSubtitles " + body.ID
 	}
-	s.saveTrack(w, anilistID, episode, label, body.Lang, "opensubtitles", text)
+	s.saveTrackKey(w, key, episode, label, body.Lang, "opensubtitles", text)
 }
 
 // apiSubtitleExternal fetches a subtitle from a user-supplied URL.
 func (s *Server) apiSubtitleExternal(w http.ResponseWriter, r *http.Request) {
-	anilistID, err1 := strconv.Atoi(r.PathValue("id"))
-	episode, err2 := strconv.Atoi(r.PathValue("ep"))
-	if err1 != nil || err2 != nil {
+	key, episode, ok := mediaKeyEp(r)
+	if !ok {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
 		return
 	}
@@ -259,14 +352,13 @@ func (s *Server) apiSubtitleExternal(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.LastIndex(label, "/"); idx >= 0 && idx < len(label)-1 {
 		label = label[idx+1:]
 	}
-	s.saveTrack(w, anilistID, episode, label, "", "external", text)
+	s.saveTrackKey(w, key, episode, label, "", "external", text)
 }
 
 // apiSubtitleUpload saves a user-uploaded subtitle file (max 2 MiB).
 func (s *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
-	anilistID, err1 := strconv.Atoi(r.PathValue("id"))
-	episode, err2 := strconv.Atoi(r.PathValue("ep"))
-	if err1 != nil || err2 != nil {
+	key, episode, ok := mediaKeyEp(r)
+	if !ok {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id/episode tidak valid"})
 		return
 	}
@@ -294,7 +386,7 @@ func (s *Server) apiSubtitleUpload(w http.ResponseWriter, r *http.Request) {
 	if len(label) > 120 {
 		label = label[:120]
 	}
-	s.saveTrack(w, anilistID, episode, label, "", "upload", text)
+	s.saveTrackKey(w, key, episode, label, "", "upload", text)
 }
 
 // apiSubtitleTrack serves one saved track converted to WebVTT.

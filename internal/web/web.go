@@ -99,7 +99,7 @@ func New(db *store.Store, otakuBase, hiBase, idlixBase string) (*Server, error) 
 		matches:   map[string]matchEntry{},
 		episodes:  map[string][]source.Episode{},
 	}
-	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail"}
+	pages := []string{"home", "detail", "watch", "search", "list", "notfound", "jadwal", "settings", "genre", "genrelist", "browse", "moviedetail", "seriesdetail", "cinemawatch"}
 	for _, p := range pages {
 		t, err := template.New("base").Funcs(template.FuncMap{
 			"pct": func(f float64) int { return int(f * 100) },
@@ -145,7 +145,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /film", s.filmPage)
 	mux.HandleFunc("GET /series", s.seriesPage)
 	mux.HandleFunc("GET /film/{slug}", s.filmDetailPage)
+	mux.HandleFunc("GET /film/{slug}/putar", s.cinemaWatchMovie)
 	mux.HandleFunc("GET /series/{slug}", s.seriesDetailPage)
+	mux.HandleFunc("GET /series/{slug}/putar/{season}/{episode}", s.cinemaWatchSeries)
 	mux.HandleFunc("GET /daftar-saya", s.myList)
 	mux.HandleFunc("GET /riwayat", s.historyPage)
 	mux.HandleFunc("GET /pengaturan", s.settingsPage)
@@ -155,6 +157,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/history/{id}/{ep}", s.apiGetHistory)
 	mux.HandleFunc("GET /api/skiptimes/{id}/{ep}", s.apiSkipTimes)
 	mux.HandleFunc("GET /api/subtitles/{id}/{ep}", s.apiSubtitleList)
+	mux.HandleFunc("GET /api/subtitles/k/{key}/{ep}", s.apiSubtitleList)
+	mux.HandleFunc("POST /api/subtitles/k/{key}/{ep}/external", s.apiSubtitleExternal)
+	mux.HandleFunc("POST /api/subtitles/k/{key}/{ep}/upload", s.apiSubtitleUpload)
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/fetch", s.apiSubtitleFetch)
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/external", s.apiSubtitleExternal)
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/upload", s.apiSubtitleUpload)
@@ -785,11 +790,15 @@ func (s *Server) saveSettings(w http.ResponseWriter, r *http.Request) {
 		if base != "" {
 			s.otaku.SetBase(base)
 		}
-		if hiBase := strings.TrimSpace(r.FormValue("hianime_base")); hiBase == "" || strings.HasPrefix(hiBase, "https://") || strings.HasPrefix(hiBase, "http://") {
-			_ = s.db.SetSetting("hianime_base", hiBase)
-			if hiBase != "" {
-				s.hi.SetBase(hiBase)
-			}
+		hiBase := strings.TrimSpace(r.FormValue("hianime_base"))
+		if hiBase != "" && !strings.HasPrefix(hiBase, "https://") && !strings.HasPrefix(hiBase, "http://") {
+			data := settingsData{baseData: s.base(), OtakuBase: s.otaku.Base(), HiBase: s.hi.Base(), IdlixBase: s.idlixBase, IdlixOn: s.idlixEnabled(), LLMBase: s.db.GetSetting("llm_base"), LLMModel: s.db.GetSetting("llm_model"), LLMKeySet: s.db.GetSetting("llm_key") != "", Version: Version, Err: "Alamat HiAnime harus diawali http:// atau https://"}
+			s.render(w, "settings", data)
+			return
+		}
+		_ = s.db.SetSetting("hianime_base", hiBase)
+		if hiBase != "" {
+			s.hi.SetBase(hiBase)
 		}
 		// A new source domain invalidates cached matches.
 		s.mu.Lock()

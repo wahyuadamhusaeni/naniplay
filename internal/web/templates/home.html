@@ -30,7 +30,7 @@
     {{range .Continue}}
     <a class="card card-wide" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}">
-        <span class="card-badge">Ep {{.Episode}}</span>
+        {{if .EpLabel}}<span class="card-badge">{{.EpLabel}}</span>{{end}}
         <span class="card-resume">▶ Lanjut</span>
       </div>
       <div class="progress"><i style="width:{{pct .Progress}}%"></i></div>

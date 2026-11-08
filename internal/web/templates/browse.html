@@ -20,7 +20,7 @@
   {{end}}
   {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
   {{if .Query}}
-    <p class="dim">{{len .Cards}} hasil {{.Kind}} untuk "{{.Query}}"{{if .Total}} · {{.Total}} total termasuk seksi lain{{end}}</p>
+    <p class="dim">{{len .Cards}} hasil {{.Kind}} untuk "{{.Query}}"{{if .Total}} · {{.Total}} total di semua seksi{{end}}</p>
     {{if .Cards}}
     <div class="grid">
       {{range .Cards}}{{template "cinemacard" .}}{{end}}

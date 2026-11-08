@@ -110,11 +110,11 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v0.11.0 — Putar film & series
 
-- [ ] Resolusi putar: play-info → klaim sesi → redeem → master HLS,
-      diputar lewat proxy & pemain yang sama dengan anime
-- [ ] Trek subtitle dari host video diimpor ke sistem subtitle yang ada
-      (termasuk terjemahan GTX/AI untuk trek asing)
-- [ ] Riwayat & Daftar Saya campuran anime + film + series
+- [x] Resolusi putar: play-info → klaim sesi → redeem → master HLS,
+      diputar lewat proxy & pemain yang sama dengan anime *(v0.11.0)*
+- [x] Trek subtitle dari host video diimpor ke sistem subtitle yang ada
+      (termasuk terjemahan GTX/AI untuk trek asing) *(v0.11.0)*
+- [x] Riwayat & Daftar Saya campuran anime + film + series *(v0.10.0–0.11.0)*
 
 ### v0.12.0 — Satu beranda, satu pencarian
 

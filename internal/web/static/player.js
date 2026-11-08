@@ -47,7 +47,7 @@
   var intervals = [];
   var activeInterval = null;
   function loadSkipTimes() {
-    fetch("/api/skiptimes/" + meta.anilistId + "/" + meta.episode)
+    if (meta.anilistId > 0) fetch("/api/skiptimes/" + meta.anilistId + "/" + meta.episode)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.found || !data.results) return;
@@ -289,7 +289,7 @@
   var subDelete = document.getElementById("subDelete");
   var subTranslate = document.getElementById("subTranslate");
   var subTranslateAI = document.getElementById("subTranslateAI");
-  var subBase = "/api/subtitles/" + meta.anilistId + "/" + meta.episode;
+  var subBase = video.dataset.subbase || ("/api/subtitles/" + meta.anilistId + "/" + meta.episode);
   var subOffset = 0;
   var subActiveId = "";
 

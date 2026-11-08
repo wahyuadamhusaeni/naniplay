@@ -1,0 +1,82 @@
+{{define "title"}}{{.Title}}{{with .Sub}} — {{.}}{{end}} — NaniPlay{{end}}
+{{define "content"}}
+<section class="watch-wrap">
+  <a class="back-link" href="{{.Back}}">← {{.BackText}}</a>
+  <h1 class="watch-title">{{.Title}}{{with .Sub}} <span class="dim">— {{.}}</span>{{end}}</h1>
+
+  {{if .Err}}
+    <div class="alert">{{.Err}}</div>
+    <p class="dim">Gerbang penyedia kadang menolak sesi baru berturut-turut. Tunggu sebentar lalu <a href="">muat ulang halaman ini</a>, atau kembali ke <a href="{{.Back}}">halaman detail</a>.</p>
+  {{else}}
+  <div class="player-box" id="playerBox">
+    <video id="player" playsinline poster="{{.Poster}}"
+      data-src="{{.ProxyURL}}"
+      data-anilist="0" data-key="{{.Key}}"
+      data-title="{{.Title}}"
+      data-poster="{{.Poster}}"
+      data-episode="{{.Episode}}"
+      data-saved="{{printf "%.3f" .SavedPos}}"
+      data-subbase="/api/subtitles/k/{{.Key}}/{{.Episode}}"
+      {{if .Next}}data-next="{{.Next}}"{{end}}>
+    </video>
+    <button class="p-bigplay" id="pBigPlay" type="button" aria-label="Putar" data-tip="Putar">▶</button>
+    <div class="p-controls" id="pControls">
+      <div class="p-seekrow">
+        <span class="p-time" id="pCur">0:00</span>
+        <input type="range" id="pSeek" min="0" max="1000" value="0" step="1" aria-label="Geser posisi putar">
+        <span class="p-time" id="pDur">0:00</span>
+      </div>
+      <div class="p-row">
+        <button class="p-btn" id="pPlay" type="button" aria-label="Putar atau jeda" data-tip="Putar/Jeda (spasi)">▶</button>
+        {{if .Prev}}<a class="p-btn" href="{{.Prev}}" aria-label="Episode sebelumnya" data-tip="Episode sebelumnya">⏮</a>{{end}}
+        {{if .Next}}<a class="p-btn" href="{{.Next}}" aria-label="Episode berikutnya" data-tip="Episode berikutnya">⏭</a>{{end}}
+        <span class="p-vol">
+          <button class="p-btn" id="pMute" type="button" aria-label="Bisukan" data-tip="Bisukan (M)">🔊</button>
+          <input type="range" id="pVol" min="0" max="100" value="100" aria-label="Volume">
+        </span>
+        <span class="p-spacer"></span>
+        <span class="p-quality" id="pQualityWrap" hidden>
+          <button class="p-btn p-quality-btn" id="pQualityBtn" type="button" data-tip="Kualitas video">⚙ <span id="pQualityLabel">Otomatis</span></button>
+          <span class="p-menu" id="pQualityMenu" hidden></span>
+        </span>
+        <button class="p-btn" id="pCC" type="button" aria-label="Subtitle" data-tip="Pengaturan subtitle">CC</button>
+        <button class="p-btn" id="pPiP" type="button" aria-label="Gambar dalam gambar" data-tip="Gambar-dalam-gambar">⧉</button>
+        <button class="p-btn" id="pFull" type="button" aria-label="Layar penuh" data-tip="Layar penuh (F)">⛶</button>
+      </div>
+    </div>
+  </div>
+  <div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>
+
+  <section class="sub-panel" id="subPanel">
+    <div class="sub-row">
+      <strong class="sub-label">Subtitle</strong>
+      <select id="subSelect"><option value="">Tanpa subtitle</option></select>
+      <button type="button" id="subTranslate" class="btn btn-ghost" hidden>🌐 Terjemahkan ke Indonesia</button>
+      <button type="button" id="subTranslateAI" class="btn btn-ghost" hidden>🤖 Fansub AI</button>
+      <button type="button" id="subDelete" class="btn btn-ghost sub-del" hidden>Hapus</button>
+      <span class="sub-offset" title="Geser timing subtitle bila tidak sinkron">
+        <button type="button" id="subMinus">−0,5s</button>
+        <span id="subOffsetVal">0,0s</span>
+        <button type="button" id="subPlus">+0,5s</button>
+      </span>
+    </div>
+    <div class="sub-row">
+      <button type="button" id="subSearch" class="btn btn-ghost">🔍 Cari Subtitle Online</button>
+      <label class="btn btn-ghost sub-upload-label">⬆ Unggah File<input type="file" id="subFile" accept=".srt,.vtt,.ass,.ssa" hidden></label>
+      <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
+      <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
+    </div>
+    <div id="subResults" class="sub-results"></div>
+    <p class="dim small" id="subStatus"></p>
+  </section>
+  <div class="watch-actions">
+    {{if .Prev}}<a class="btn btn-ghost" href="{{.Prev}}">⏮ Episode sebelumnya</a>{{end}}
+    {{if .Next}}<a class="btn btn-play" href="{{.Next}}">Episode berikutnya ⏭</a>{{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
+{{define "scripts"}}
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script src="/static/player.js?v=1100"></script>
+{{end}}

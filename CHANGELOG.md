@@ -4,6 +4,38 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.11.0] — 2026-11-08
+
+### Ditambahkan
+- **Pemutar Film & Series**: alur gerbang putar penyedia diimplementasikan
+  penuh secara full-Go — play-info menerbitkan token gerbang, klaim
+  sesi setelah hitung mundur ±15 detik, redeem di host video menjadi
+  master HLS + berkas subtitle. Halaman putar memakai pemutar kustom
+  yang sama dengan anime (kontrol penuh, kualitas HLS, PiP, keyboard).
+- **Subtitle sinema terimpor otomatis**: trek subtitle bawaan server
+  masuk ke penyimpanan trek lokal — panel subtitle, unggah, ambil dari
+  URL, terjemahan GTX dan Fansub AI semuanya bekerja untuk film/series.
+  Rute subtitle digeneralisasi per kunci media
+  (`/api/subtitles/k/{key}/{ep}`).
+- Riwayat "Lanjut Menonton" series membawa label S/E (mis. S2 E3) dan
+  tautan langsung ke episode yang sama.
+- Paket `idlix`: `ResolvePlayback`, `Episode`, `gateDID`, POST JSON
+  ber-sidik jari TLS; tes alur putar dengan fetcher fixture.
+
+### Diperbaiki
+- Detail series tanpa `defaultSeason` dari API kini mundur ke season
+  pertama (sebelumnya daftar episode kosong).
+- Judul katalog tanpa video diberi lencana "Belum ada video" dan
+  tombol putarnya dinonaktifkan dengan jujur.
+- Validasi domain HiAnime di Pengaturan kini menampilkan pesan error
+  (sebelumnya input tidak valid diabaikan diam-diam).
+- Redaksi total pencarian sinema diperjelas ("total di semua seksi").
+
+### Catatan
+- Sesi putar bersifat sekali pakai: memuat ulang halaman putar akan
+  menyiapkan sesi baru (±15 detik), sama seperti aplikasi resmi
+  sumbernya.
+
 ## [0.10.0] — 2026-11-08
 
 ### Ditambahkan

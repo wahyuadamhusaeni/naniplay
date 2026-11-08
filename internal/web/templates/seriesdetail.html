@@ -19,7 +19,7 @@
       {{if .Tagline}}<p class="dim"><em>{{.Tagline}}</em></p>{{end}}
       <p class="hero-desc">{{.Overview}}</p>
       <div class="hero-actions">
-        <span class="btn btn-play btn-disabled" data-tip="Pemutar film & series hadir di v0.11.0">▶&nbsp; Putar — Segera</span>
+        {{if and $.Season $.Season.Episodes}}{{with index $.Season.Episodes 0}}<a class="btn btn-play" href="/series/{{$.Series.Slug}}/putar/{{$.Season.SeasonNumber}}/{{.EpisodeNumber}}">▶&nbsp; Putar S{{$.Season.SeasonNumber}} E{{.EpisodeNumber}}</a>{{end}}{{else}}<span class="btn btn-play btn-disabled">Belum ada episode</span>{{end}}
         <form method="post" action="/favorites/toggle" class="inline-form">
           <input type="hidden" name="media_key" value="series:{{.Slug}}">
           <input type="hidden" name="title" value="{{.Title}}">
@@ -28,7 +28,7 @@
           <button class="btn btn-ghost" type="submit">{{if $.IsFavorite}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
         </form>
       </div>
-      <p class="dim small">Pemutar film &amp; series menyusul di v0.11.0 — katalog, detail, dan Daftar Saya sudah aktif.</p>
+      <p class="dim small">Menyiapkan putar memerlukan ±15 detik (gerbang sesi penyedia) — halaman putar terbuka setelah sesi siap. Subtitle bawaan server terimpor otomatis dan bisa diterjemahkan (termasuk Fansub AI) seperti di anime.</p>
     </div>
   </div>
 </section>
@@ -64,7 +64,7 @@
         <p class="ep-row-title"><span class="dim">{{.EpisodeNumber}}.</span> {{.Name}}{{if .Runtime}} <span class="dim small">· {{.Runtime}} mnt</span>{{end}}</p>
         {{if .Overview}}<p class="ep-row-desc">{{.Overview}}</p>{{end}}
       </div>
-      <span class="btn btn-ghost btn-disabled" data-tip="Pemutar film & series hadir di v0.11.0">▶</span>
+      {{if .HasVideo}}<a class="btn btn-ghost" href="/series/{{$.Series.Slug}}/putar/{{$.Season.SeasonNumber}}/{{.EpisodeNumber}}" data-tip="Putar episode ini (±15 detik menyiapkan sesi)">▶</a>{{else}}<span class="btn btn-ghost btn-disabled" data-tip="Episode ini belum punya video">▶</span>{{end}}
     </div>
     {{end}}
   </div>

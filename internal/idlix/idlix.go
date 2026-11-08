@@ -74,6 +74,35 @@ func (f *tlsFetcher) Get(ctx context.Context, rawURL string) (int, []byte, error
 	return resp.StatusCode, body, err
 }
 
+// PostJSON issues a JSON POST to a full URL with the same browser
+// fingerprint (playback claim/redeem steps; redeem lives on the
+// video host's origin, hence the full URL).
+func (f *tlsFetcher) PostJSON(ctx context.Context, fullURL string, body []byte, headers map[string]string) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, strings.NewReader(string(body)))
+	if err != nil {
+		return 0, nil, err
+	}
+	hdr := http.Header{
+		"content-type":      {"application/json"},
+		"accept":            {"application/json, text/plain, */*"},
+		"accept-language":   {"id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7"},
+		"referer":           {f.base + "/"},
+		"user-agent":        {userAgent},
+		http.HeaderOrderKey: {"content-type", "accept", "accept-language", "referer", "user-agent"},
+	}
+	for k, v := range headers {
+		hdr.Set(k, v)
+	}
+	req.Header = hdr
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	return resp.StatusCode, b, err
+}
+
 // Client is the IDLIX catalog client with a small in-memory cache.
 type Client struct {
 	base string

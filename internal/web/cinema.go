@@ -7,10 +7,13 @@ package web
 // marked as upcoming instead of pretending to work.
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/wahyuadamhusaeni/naniplay/internal/idlix"
 	"github.com/wahyuadamhusaeni/naniplay/internal/store"
@@ -37,7 +40,23 @@ func watchHref(h store.HistoryEntry) string {
 	if id, ok := store.ParseAnimeKey(h.Key); ok {
 		return fmt.Sprintf("/watch/%d/%d", id, h.Episode)
 	}
+	if strings.HasPrefix(h.Key, "series:") && h.Episode >= 1000 {
+		slug := strings.TrimPrefix(h.Key, "series:")
+		return fmt.Sprintf("/series/%s/putar/%d/%d", slug, h.Episode/1000, h.Episode%1000)
+	}
 	return mediaHref(h.Key)
+}
+
+// epLabel renders the history badge: "Ep 3" for anime, "S1 E3" for
+// series (episode stored as season*1000+episode), "" for movies.
+func epLabel(h store.HistoryEntry) string {
+	if _, ok := store.ParseAnimeKey(h.Key); ok {
+		return "Ep " + strconv.Itoa(h.Episode)
+	}
+	if strings.HasPrefix(h.Key, "series:") && h.Episode >= 1000 {
+		return "S" + strconv.Itoa(h.Episode/1000) + " E" + strconv.Itoa(h.Episode%1000)
+	}
+	return ""
 }
 
 // favView / histView wrap store rows with their URLs for templates.
@@ -48,7 +67,8 @@ type favView struct {
 
 type histView struct {
 	store.HistoryEntry
-	Href string
+	Href    string
+	EpLabel string
 }
 
 func favViews(favs []store.Favorite) []favView {
@@ -62,7 +82,7 @@ func favViews(favs []store.Favorite) []favView {
 func histViews(hist []store.HistoryEntry) []histView {
 	out := make([]histView, 0, len(hist))
 	for _, h := range hist {
-		out = append(out, histView{HistoryEntry: h, Href: watchHref(h)})
+		out = append(out, histView{HistoryEntry: h, Href: watchHref(h), EpLabel: epLabel(h)})
 	}
 	return out
 }
@@ -88,12 +108,13 @@ type browseData struct {
 // cinemaCard unifies movies, series, and search hits into one card
 // shape for the cinemacard template define.
 type cinemaCard struct {
-	Href   string
-	Poster string
-	Title  string
-	Year   string
-	Rating float64
-	Badge  string // quality (movies) or season count (series)
+	Href    string
+	Poster  string
+	Title   string
+	Year    string
+	Rating  float64
+	Badge   string // quality (movies) or season count (series)
+	NoVideo bool   // catalog entry without a playable video
 }
 
 func movieCards(items []idlix.MovieItem) []cinemaCard {
@@ -102,6 +123,7 @@ func movieCards(items []idlix.MovieItem) []cinemaCard {
 		out = append(out, cinemaCard{
 			Href: "/film/" + m.Slug, Poster: m.Poster(), Title: m.Title,
 			Year: m.Year(), Rating: m.Rating.Float(), Badge: m.Quality,
+			NoVideo: !m.HasVideo,
 		})
 	}
 	return out
@@ -117,6 +139,7 @@ func seriesCards(items []idlix.SeriesItem) []cinemaCard {
 		out = append(out, cinemaCard{
 			Href: "/series/" + m.Slug, Poster: m.Poster(), Title: m.Title,
 			Year: m.Year(), Rating: m.Rating.Float(), Badge: badge,
+			NoVideo: !m.HasVideo,
 		})
 	}
 	return out
@@ -263,6 +286,13 @@ func (s *Server) seriesDetailPage(w http.ResponseWriter, r *http.Request) {
 		Season:     sr.DefaultSeason,
 		IsFavorite: s.db.IsFavorite("series:" + slug),
 	}
+	if data.Season == nil && len(sr.Seasons) > 0 {
+		// Some series ship without a default season; fall back to the
+		// first season's episodes instead of an empty episode section.
+		if sd, err := s.idlix.SeasonEpisodes(r.Context(), slug, sr.Seasons[0].SeasonNumber); err == nil && sd != nil {
+			data.Season = sd
+		}
+	}
 	if data.Season != nil {
 		data.SeasonNum = data.Season.SeasonNumber
 	}
@@ -273,4 +303,101 @@ func (s *Server) seriesDetailPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.render(w, "seriesdetail", data)
+}
+
+// ---------- halaman putar sinema ----------
+
+type cinemaWatchData struct {
+	baseData
+	Key      string
+	Title    string
+	Sub      string
+	Poster   string
+	Back     string
+	BackText string
+	ProxyURL string
+	Episode  int // encoded (series: season*1000+episode; movie: 1)
+	SavedPos float64
+	Next     string
+	Prev     string
+	Server   string
+	Err      string
+}
+
+// playCinema resolves the stream (the provider gate takes ~15 s)
+// and renders the shared player for one movie or episode.
+func (s *Server) playCinema(w http.ResponseWriter, r *http.Request, key string, encEp int, title, sub, poster, back, backText, ctype, contentID, next, prev string) {
+	data := cinemaWatchData{
+		baseData: s.base(), Key: key, Title: title, Sub: sub, Poster: poster,
+		Back: back, BackText: backText, Episode: encEp, Next: next, Prev: prev,
+		Server: "IDLIX",
+	}
+	if saved, err := s.db.HistoryFor(key, encEp); err == nil && saved != nil {
+		data.SavedPos = saved.Position
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+	defer cancel()
+	pb, err := s.idlix.ResolvePlayback(ctx, ctype, contentID)
+	if err != nil {
+		data.Err = "Putar gagal disiapkan: " + cinemaErr(err)
+		s.render(w, "cinemawatch", data)
+		return
+	}
+	s.importCinemaSubtitles(ctx, key, encEp, pb.Subtitles)
+	data.ProxyURL = "/api/proxy?u=" + url.QueryEscape(pb.MasterURL) + "&r=" + url.QueryEscape(s.idlix.Base()+"/")
+	s.render(w, "cinemawatch", data)
+}
+
+func (s *Server) cinemaWatchMovie(w http.ResponseWriter, r *http.Request) {
+	if !s.idlixEnabled() {
+		http.Redirect(w, r, "/film", http.StatusSeeOther)
+		return
+	}
+	slug := r.PathValue("slug")
+	mv, err := s.idlix.Movie(r.Context(), slug)
+	if err != nil || mv == nil {
+		s.render(w, "notfound", s.base())
+		return
+	}
+	s.playCinema(w, r, "movie:"+slug, 1, mv.Title, "", mv.Poster(), "/film/"+slug, mv.Title, "movie", mv.ID, "", "")
+}
+
+func (s *Server) cinemaWatchSeries(w http.ResponseWriter, r *http.Request) {
+	if !s.idlixEnabled() {
+		http.Redirect(w, r, "/series", http.StatusSeeOther)
+		return
+	}
+	slug := r.PathValue("slug")
+	season, err1 := strconv.Atoi(r.PathValue("season"))
+	epNum, err2 := strconv.Atoi(r.PathValue("episode"))
+	if err1 != nil || err2 != nil || season < 0 || epNum < 1 {
+		s.render(w, "notfound", s.base())
+		return
+	}
+	resp, err := s.idlix.Episode(r.Context(), slug, season, epNum)
+	if err != nil || resp == nil || resp.Episode == nil || resp.Series == nil {
+		s.render(w, "notfound", s.base())
+		return
+	}
+	next, prev := "", ""
+	if resp.Season != nil {
+		eps := resp.Season.Episodes
+		for i, e := range eps {
+			if e.EpisodeNumber == epNum {
+				if i+1 < len(eps) {
+					next = "/series/" + slug + "/putar/" + strconv.Itoa(season) + "/" + strconv.Itoa(eps[i+1].EpisodeNumber)
+				}
+				if i-1 >= 0 {
+					prev = "/series/" + slug + "/putar/" + strconv.Itoa(season) + "/" + strconv.Itoa(eps[i-1].EpisodeNumber)
+				}
+				break
+			}
+		}
+	}
+	sub := "Season " + strconv.Itoa(season) + " · Episode " + strconv.Itoa(epNum)
+	if resp.Episode.Name != "" {
+		sub += " — " + resp.Episode.Name
+	}
+	title := resp.Series.Title
+	s.playCinema(w, r, "series:"+slug, season*1000+epNum, title, sub, resp.Series.Poster(), "/series/"+slug, title, "episode", resp.Episode.ID, next, prev)
 }
