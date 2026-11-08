@@ -2,6 +2,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -1009,12 +1010,28 @@ func (s *Server) apiSettingsTest(w http.ResponseWriter, r *http.Request) {
 			ok, note = true, "API IDLIX menjawab normal"
 		}
 	case "llm":
+		// Probe with a minimal chat completion — the same call the
+		// fansub feature makes. (GET /models is a poor probe: some
+		// routers return megabytes, and big responses can stall on
+		// same-host hairpin paths while chat works fine.)
 		key := strings.TrimSpace(body.Key)
 		if key == "" {
 			key = s.db.GetSetting("llm_key")
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(base, "/")+"/models", nil)
+		model := s.db.GetSetting("llm_model")
+		if model == "" {
+			model = "gpt-4o-mini"
+		}
+		payload, _ := json.Marshal(map[string]any{
+			"model": model,
+			"messages": []map[string]string{
+				{"role": "user", "content": "ping"},
+			},
+			"max_tokens": 1,
+		})
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(base, "/")+"/chat/completions", bytes.NewReader(payload))
 		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
 			if key != "" {
 				req.Header.Set("Authorization", "Bearer "+key)
 			}
@@ -1024,9 +1041,11 @@ func (s *Server) apiSettingsTest(w http.ResponseWriter, r *http.Request) {
 				resp.Body.Close()
 				switch {
 				case resp.StatusCode == http.StatusOK:
-					ok, note = true, "Endpoint AI menjawab (daftar model terbaca)"
+					ok, note = true, "Endpoint AI menjawab dan model bekerja"
 				case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 					note = "Endpoint menjawab tetapi kunci ditolak (HTTP " + resp.Status + ")"
+				case resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity:
+					ok, note = true, "Endpoint hidup & kunci diterima (cek nama model — HTTP "+resp.Status+")"
 				default:
 					note = "Endpoint menjawab HTTP " + resp.Status
 				}
