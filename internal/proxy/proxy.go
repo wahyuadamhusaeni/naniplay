@@ -6,8 +6,10 @@ package proxy
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,10 +18,50 @@ import (
 
 const browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
+// blockedIP reports whether an address must never be dialed by the
+// proxy: loopback, private, link-local, multicast, or unspecified.
+// Without this guard the proxy is an open SSRF door — anyone who can
+// reach the instance could make the server fetch internal services.
+func blockedIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified()
+}
+
+// guardedTransport resolves the host itself and refuses to dial
+// blocked addresses, so the check also covers HTTP redirects (every
+// redirect re-dials through here) and cannot be skipped by a hostname
+// that resolves to an internal IP.
+func guardedTransport() *http.Transport {
+	dialer := &net.Dialer{Timeout: 12 * time.Second}
+	return &http.Transport{
+		ForceAttemptHTTP2: true,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+			if err != nil {
+				return nil, err
+			}
+			for _, ip := range ips {
+				if blockedIP(ip) {
+					return nil, fmt.Errorf("alamat tujuan diblokir: %s", host)
+				}
+			}
+			if len(ips) == 0 {
+				return nil, fmt.Errorf("host tidak ditemukan: %s", host)
+			}
+			return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))
+		},
+		TLSHandshakeTimeout: 12 * time.Second,
+	}
+}
+
 // Handler returns the /api/proxy handler. Query params: u (target URL),
 // r (Referer to present to the origin, optional).
 func Handler() http.Handler {
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: guardedTransport()}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		target := r.URL.Query().Get("u")
 		referer := r.URL.Query().Get("r")

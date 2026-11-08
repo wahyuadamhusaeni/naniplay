@@ -486,12 +486,12 @@ type detailData struct {
 func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 	a, err := s.anilist.Detail(r.Context(), id)
 	if err != nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	forced := validSrc(r.URL.Query().Get("src"))
@@ -649,12 +649,12 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 	id, err1 := strconv.Atoi(r.PathValue("id"))
 	ep, err2 := strconv.Atoi(r.PathValue("ep"))
 	if err1 != nil || err2 != nil {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 	a, err := s.anilist.Detail(r.Context(), id)
 	if err != nil {
-		s.render(w, "notfound", s.base())
+		s.renderNotFound(w)
 		return
 	}
 	forced := validSrc(r.URL.Query().Get("src"))
@@ -772,7 +772,7 @@ func (s *Server) genrePage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !valid {
-		http.NotFound(w, r)
+		s.renderNotFound(w)
 		return
 	}
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))

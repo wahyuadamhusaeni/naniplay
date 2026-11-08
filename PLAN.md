@@ -178,3 +178,4 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Hapus riwayat per judul & hapus semua (endpoint memakai DeleteHistory yang sudah ada)
 - [x] Penanda hari ini di Jadwal; meta/OG/theme-color; footer mencerminkan cakupan penuh
 - [x] v1.6.1: perbaiki lomba event ketuk-vs-klik pada kontrol pemutar (keputusan dari pointerdown), kontrol menetap saat pause, HTML no-cache, tumpukan kartu episode berikutnya vs tombol skip
+- [x] v1.6.2: penjaga SSRF proxy (validasi IP di lapisan dial), soft-404 terakhir dibereskan; audit XSS panel subtitle & resume dinyatakan bersih
