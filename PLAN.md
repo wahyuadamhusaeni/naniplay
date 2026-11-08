@@ -1,7 +1,13 @@
 # Rencana Pengembangan NaniPlay
 
-Produk: pemutar & agregator anime subtitle Indonesia, **Web (self-hosted) + Windows**,
-satu binary Go. Android menyusul sebagai konsumen API yang sama.
+Produk: pemutar & agregator anime, film, dan series subtitle Indonesia,
+**Web (self-hosted) + Windows**, satu aplikasi Go. Android menyusul sebagai
+konsumen API yang sama.
+
+Sejak keputusan 2026-11-08, NaniPlay adalah SATU aplikasi untuk anime
+(AniList + banyak sumber) DAN film/series (katalog IDLIX) — satu web,
+satu container, satu repo. Implementasi selalu clean-room: perilaku API
+publik situs sumber yang dipelajari, bukan kode proyek lain.
 
 ## Prinsip
 
@@ -60,6 +66,63 @@ satu binary Go. Android menyusul sebagai konsumen API yang sama.
 - [x] Pemain kustom (menu kualitas, PiP, pintasan keyboard), pemilihan sumber manual, pemilih episode cerdas, drawer mobile *(v0.8.0, masukan pengguna)*
 - [ ] Episode mendatang untuk anime di Daftar Saya/Riwayat
 - [ ] Mode TV (navigasi D-pad) di web
+
+## Fase 5 — Sinema: Gabung Film & Series IDLIX *(keputusan 2026-11-08)*
+
+Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
+
+- Situs IDLIX (`z2.idlixku.com`, dapat diganti dari Pengaturan) memiliki
+  **API JSON-nya sendiri**: `/api/movies`, `/api/movies/{slug}`,
+  `/api/series`, `/api/series/{slug}`, `/api/series/{slug}/season/{s}/episode/{e}`,
+  `/api/genres`, `/api/search`, serta alur putar
+  `/api/watch/play-info/{type}/{id}` → gate token + hitung mundur buka kunci →
+  `POST /api/watch/session/claim` → redeem ke host video (majorplay) →
+  master HLS + trek subtitle. NaniPlay mengimplementasikan klien API ini
+  secara clean-room di Go.
+- Seluruh situs berada di balik tantangan Cloudflare ("Just a moment",
+  HTTP 403 untuk klien HTTP biasa — terverifikasi langsung & via proxy).
+  Karena itu container membawa **pembantu sesi** kecil (Node + Chromium
+  headless, ditulis sendiri): satu-satunya tugasnya menjaga satu halaman
+  yang lolos tantangan dan mengeksekusi fetch atas perintah sisi Go —
+  pola yang sama yang dipakai aplikasi IDLIX komunitas, diimplementasikan
+  ulang. Chromium headless terverifikasi JALAN di CPU VPS target.
+- Konsekuensi jujur: image membesar dari ~15 MB ke ratusan MB dan RAM
+  siaga naik (browser), demi satu container untuk semua konten.
+
+### v0.9.0 — Fondasi gabung
+
+- [ ] Generalisasi kunci media di store: `anilist_id` (int) → kunci media
+      string (`anime:{id}`, `movie:{slug}`, `series:{slug}`) untuk
+      history, favorites, dan subtitle_tracks; migrasi data lama otomatis
+- [ ] Seksi navigasi Anime | Film | Series; Pengaturan: aktif/nonaktifkan
+      IDLIX + URL basisnya
+
+### v0.10.0 — Katalog sinema
+
+- [ ] Paket `internal/idlix`: klien API katalog + jembatan pembantu sesi
+      (sesi Cloudflare, fetch dalam halaman, cache respons, antrean tunggal)
+- [ ] Halaman Film & Series: rail beranda per seksi, jelajah + genre,
+      detail series dengan musim/episode, pencarian per seksi
+
+### v0.11.0 — Putar film & series
+
+- [ ] Resolusi putar: play-info → klaim sesi → redeem → master HLS,
+      diputar lewat proxy & pemain yang sama dengan anime
+- [ ] Trek subtitle dari host video diimpor ke sistem subtitle yang ada
+      (termasuk terjemahan GTX/AI untuk trek asing)
+- [ ] Riwayat & Daftar Saya campuran anime + film + series
+
+### v0.12.0 — Satu beranda, satu pencarian
+
+- [ ] Pencarian gabungan (anime + film + series dalam satu hasil)
+- [ ] Hero & rail campuran di beranda; halaman genre film
+
+### v1.0.0 — Mode TV & penyempurnaan
+
+- [ ] Mode TV di web: navigasi D-pad, fokus membesar/bercahaya pada kartu
+      (ide tata letak TV diadopsi bersih dari aplikasi TV komunitas)
+- [ ] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)*
+- [ ] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis
 
 ## Nanti
 
