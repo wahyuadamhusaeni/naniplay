@@ -1,0 +1,75 @@
+{{define "title"}}{{.Series.Title}} — NaniPlay{{end}}
+{{define "content"}}
+{{with .Series}}
+<section class="detail-hero" style="background-image:url('{{if .BackdropURL}}{{.BackdropURL}}{{else}}{{.Poster}}{{end}}')">
+  <div class="hero-shade"></div>
+  <div class="detail-body">
+    <img class="detail-poster" src="{{.Poster}}" alt="{{.Title}}">
+    <div class="detail-info">
+      <h1>{{.Title}}</h1>
+      <p class="hero-meta">
+        {{if .Rating}}<span class="score">★ {{printf "%.1f" .Rating.Float}}</span>{{end}}
+        {{if .Year}}<span>{{.Year}}</span>{{end}}
+        {{if .NumberOfSeasons}}<span>{{.NumberOfSeasons}} Season</span>{{end}}
+        {{if .NumberOfEpisodes}}<span>{{.NumberOfEpisodes}} Episode</span>{{end}}
+        {{if .Status}}<span>{{.Status}}</span>{{end}}
+        {{if .Country}}<span>{{.Country}}</span>{{end}}
+      </p>
+      {{if .Genres}}<p class="genres">{{range .Genres}}<a class="chip chip-link" href="/series?genre={{.Slug}}">{{.Name}}</a>{{end}}</p>{{end}}
+      {{if .Tagline}}<p class="dim"><em>{{.Tagline}}</em></p>{{end}}
+      <p class="hero-desc">{{.Overview}}</p>
+      <div class="hero-actions">
+        <span class="btn btn-play btn-disabled" data-tip="Pemutar film & series hadir di v0.11.0">▶&nbsp; Putar — Segera</span>
+        <form method="post" action="/favorites/toggle" class="inline-form">
+          <input type="hidden" name="media_key" value="series:{{.Slug}}">
+          <input type="hidden" name="title" value="{{.Title}}">
+          <input type="hidden" name="poster" value="{{.Poster}}">
+          <input type="hidden" name="return" value="/series/{{.Slug}}">
+          <button class="btn btn-ghost" type="submit">{{if $.IsFavorite}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+        </form>
+      </div>
+      <p class="dim small">Pemutar film &amp; series menyusul di v0.11.0 — katalog, detail, dan Daftar Saya sudah aktif.</p>
+    </div>
+  </div>
+</section>
+{{if .Cast}}
+<section class="rail">
+  <h2>Pemeran</h2>
+  <div class="rail-track">
+    {{range .Cast}}
+    <div class="card cast-card">
+      <div class="card-img">{{if .Profile}}<img loading="lazy" src="{{.Profile}}" alt="{{.Name}}">{{end}}</div>
+      <p class="card-title">{{.Name}}</p>
+      <p class="card-meta">{{.Character}}</p>
+    </div>
+    {{end}}
+  </div>
+</section>
+{{end}}
+{{end}}
+
+<section class="episodes">
+  <h2>Episode {{if $.Season}}<span class="dim small">· Season {{$.Season.SeasonNumber}} — {{len $.Season.Episodes}} episode</span>{{end}}</h2>
+  {{if gt (len .Series.Seasons) 1}}
+  <p class="genres">
+    {{range .Series.Seasons}}<a class="chip chip-link{{if eq $.SeasonNum .SeasonNumber}} chip-active{{end}}" href="/series/{{$.Series.Slug}}?season={{.SeasonNumber}}">Season {{.SeasonNumber}} ({{.EpisodeCount}})</a>{{end}}
+  </p>
+  {{end}}
+  {{if .Season}}
+  <div class="ep-list">
+    {{range .Season.Episodes}}
+    <div class="ep-row">
+      {{if .Still}}<img class="ep-still" loading="lazy" src="{{.Still}}" alt="{{.Name}}">{{end}}
+      <div class="ep-row-body">
+        <p class="ep-row-title"><span class="dim">{{.EpisodeNumber}}.</span> {{.Name}}{{if .Runtime}} <span class="dim small">· {{.Runtime}} mnt</span>{{end}}</p>
+        {{if .Overview}}<p class="ep-row-desc">{{.Overview}}</p>{{end}}
+      </div>
+      <span class="btn btn-ghost btn-disabled" data-tip="Pemutar film & series hadir di v0.11.0">▶</span>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="dim">Daftar episode tidak tersedia untuk season ini.</p>
+  {{end}}
+</section>
+{{end}}

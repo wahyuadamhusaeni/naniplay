@@ -28,7 +28,7 @@
   <h2>Lanjutkan Menonton</h2>
   <div class="rail-track">
     {{range .Continue}}
-    <a class="card card-wide" href="/watch/{{.AnilistID}}/{{.Episode}}">
+    <a class="card card-wide" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}">
         <span class="card-badge">Ep {{.Episode}}</span>
         <span class="card-resume">▶ Lanjut</span>
@@ -64,11 +64,29 @@
   <h2>Daftar Saya</h2>
   <div class="rail-track">
     {{range .Favorites}}
-    <a class="card" href="/anime/{{.AnilistID}}">
+    <a class="card" href="{{.Href}}">
       <div class="card-img"><img loading="lazy" src="{{.Poster}}" alt="{{.Title}}"></div>
       <p class="card-title">{{.Title}}</p>
     </a>
     {{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .CinemaFilm}}
+<section class="rail">
+  <h2>🎬 Film Populer</h2>
+  <div class="rail-track">
+    {{range .CinemaFilm}}{{template "cinemacard" .}}{{end}}
+  </div>
+</section>
+{{end}}
+
+{{if .CinemaSeri}}
+<section class="rail">
+  <h2>📺 Series Populer</h2>
+  <div class="rail-track">
+    {{range .CinemaSeri}}{{template "cinemacard" .}}{{end}}
   </div>
 </section>
 {{end}}

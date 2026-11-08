@@ -46,6 +46,21 @@ type Client struct {
 	eps map[string][]source.Episode
 }
 
+// Base returns the current source base URL.
+func (c *Client) Base() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.base
+}
+
+// SetBase swaps the source base URL (used by the settings page).
+func (c *Client) SetBase(base string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.base = strings.TrimRight(strings.TrimSpace(base), "/")
+	c.eps = map[string][]source.Episode{}
+}
+
 // New builds a HiAnime client; empty base uses the default domain.
 func New(base string) *Client {
 	if base == "" {

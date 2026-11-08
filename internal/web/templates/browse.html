@@ -1,0 +1,46 @@
+{{define "title"}}{{.Kind}} — NaniPlay{{end}}
+{{define "content"}}
+<section class="page-wrap">
+  <h2 class="page-h">{{.Emoji}} {{.Kind}}</h2>
+  {{if .Disabled}}
+  <div class="empty-box">
+    <p><strong>Seksi {{.Kind}} belum aktif.</strong></p>
+    <p class="dim">Aktifkan di <a href="/pengaturan">Pengaturan → Film &amp; Series (IDLIX)</a>.</p>
+  </div>
+  {{else}}
+  <form class="cinema-search" action="{{.Path}}" method="get">
+    <input type="search" name="q" value="{{.Query}}" placeholder="Cari {{.Kind}}…" autocomplete="off">
+    <button class="btn btn-play" type="submit">Cari</button>
+  </form>
+  {{if .Genres}}
+  <p class="genres cinema-genres">
+    <a class="chip chip-link{{if not .Genre}} chip-active{{end}}" href="{{.Path}}">Semua</a>
+    {{range .Genres}}<a class="chip chip-link{{if eq $.Genre .Slug}} chip-active{{end}}" href="{{$.Path}}?genre={{.Slug}}">{{.Name}}</a>{{end}}
+  </p>
+  {{end}}
+  {{if .Err}}<div class="alert">{{.Err}}</div>{{end}}
+  {{if .Query}}
+    <p class="dim">{{len .Cards}} hasil {{.Kind}} untuk "{{.Query}}"{{if .Total}} · {{.Total}} total termasuk seksi lain{{end}}</p>
+    {{if .Cards}}
+    <div class="grid">
+      {{range .Cards}}{{template "cinemacard" .}}{{end}}
+    </div>
+    {{else if not .Err}}<p class="dim">Tidak ada {{.Kind}} yang cocok. Coba kata kunci lain.</p>{{end}}
+  {{else}}
+    {{if .Total}}<p class="dim">{{.Total}} {{.Kind}} di katalog{{if .Genre}} · genre {{.Genre}}{{end}}</p>{{end}}
+    {{if .Cards}}
+    <div class="grid">
+      {{range .Cards}}{{template "cinemacard" .}}{{end}}
+    </div>
+    {{else if not .Err}}<p class="dim">Katalog kosong untuk pilihan ini.</p>{{end}}
+    {{if gt .TotalPag 1}}
+    <nav class="pager">
+      {{if gt .Page 1}}<a class="btn btn-ghost" href="{{.Path}}?page={{sub .Page 1}}{{if .Genre}}&genre={{.Genre}}{{end}}">← Sebelumnya</a>{{end}}
+      <span class="dim">Halaman {{.Page}} dari {{.TotalPag}}</span>
+      {{if lt .Page .TotalPag}}<a class="btn btn-ghost" href="{{.Path}}?page={{add .Page 1}}{{if .Genre}}&genre={{.Genre}}{{end}}">Berikutnya →</a>{{end}}
+    </nav>
+    {{end}}
+  {{end}}
+  {{end}}
+</section>
+{{end}}

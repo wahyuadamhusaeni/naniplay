@@ -4,6 +4,35 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.10.0] — 2026-11-08
+
+### Ditambahkan
+- **Katalog Film & Series (IDLIX)**: paket `internal/idlix` — klien
+  full-Go untuk API situs IDLIX dengan sidik jari TLS/HTTP2 Chrome
+  (uTLS) yang lolos penyaringan bot Cloudflare (terverifikasi dari
+  server produksi: ±7.700 film & ±5.100 series). Cache respons
+  in-memory per endpoint.
+- **Halaman Film & Series**: jelajah katalog dengan penomoran halaman,
+  cip genre, dan pencarian per seksi; rail "Film Populer" & "Series
+  Populer" di beranda (sort popularitas).
+- **Detail film**: hero backdrop, meta (rating/kualitas/durasi/
+  sutradara), genre, sinopsis, pemeran, dan tombol Daftar Saya.
+- **Detail series**: hero, meta, pemeran, pemilih season, dan daftar
+  episode lengkap dengan still & sinopsis per episode.
+- Daftar Saya & Riwayat kini campuran anime + film + series (tautan
+  per jenis media).
+
+### Diperbaiki
+- **Domain HiAnime kini bisa diedit di Pengaturan** (sebelumnya hanya
+  tersimpan lewat database/env, tanpa kolom UI) — satu formulir
+  "Sumber" untuk Otakudesu & HiAnime.
+
+### Catatan
+- Tombol putar film/series ditandai "Segera" dengan jujur: pemutarnya
+  tiba di v0.11.0. Dari IP yang skor botnya rendah (mis. sebagian
+  jaringan perumahan), IDLIX dapat menantang akses; katalog menampilkan
+  pesan yang jelas dalam keadaan itu.
+
 ## [0.9.0] — 2026-11-08
 
 ### Ditambahkan

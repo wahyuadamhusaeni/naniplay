@@ -102,10 +102,11 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v0.10.0 — Katalog sinema
 
-- [ ] Paket `internal/idlix`: klien API katalog full-Go (sidik jari TLS
-      Chrome via uTLS, cache respons, antrean tunggal, domain dapat diganti)
-- [ ] Halaman Film & Series: rail beranda per seksi, jelajah + genre,
-      detail series dengan musim/episode, pencarian per seksi
+- [x] Paket `internal/idlix`: klien API katalog full-Go (sidik jari TLS
+      Chrome via uTLS, cache respons, domain dapat diganti dari Pengaturan)
+      *(v0.10.0)*
+- [x] Halaman Film & Series: rail beranda per seksi, jelajah + genre,
+      detail series dengan musim/episode, pencarian per seksi *(v0.10.0)*
 
 ### v0.11.0 — Putar film & series
 
