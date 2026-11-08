@@ -126,9 +126,14 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)* *(v1.0.0)*
 - [x] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis *(v1.0.0)*
 
-## Nanti (belum terjadwal)
+## Di luar rencana (keputusan 2026-11-08)
 
-- [ ] Sinkronisasi antar perangkat (opsional, self-hosted)
-
-Di luar rencana (keputusan 2026-11-08): mode TV dan aplikasi Android —
-tidak dikerjakan kecuali pemilik memutuskan sebaliknya.
+- Mode TV dan aplikasi Android — tidak dikerjakan kecuali pemilik
+  memutuskan sebaliknya.
+- Sinkronisasi antar perangkat — **tidak diperlukan**: aplikasi ini
+  self-hosted, semua data (riwayat, daftar, subtitle, pengaturan)
+  hidup di database server yang sama, jadi setiap perangkat yang
+  membuka web-nya otomatis melihat data yang sama. Satu-satunya
+  pengecualian adalah biner Windows mandiri dengan database
+  lokalnya sendiri; untuk itu cukup arahkan pemakaian ke instance
+  server, bukan membangun mekanisme sinkronisasi.
