@@ -630,6 +630,7 @@ type watchData struct {
 	PrefQuality  string
 	PrefSubLang  string
 	Hardsub      bool
+	Fav          bool
 	Anime        *anilist.Anime
 	Episode      int
 	CurrentEp    int
@@ -684,6 +685,7 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 	}
 	data.ProviderName = providerDisplay(providerName)
 	data.Hardsub = providerName == "otakudesu"
+	data.Fav = s.db.IsFavorite(store.AnimeKey(a.ID))
 	data.Episodes = eps
 	var target *source.Episode
 	for i := range eps {

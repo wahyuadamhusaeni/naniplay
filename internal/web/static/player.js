@@ -360,6 +360,10 @@
     if (pCC) pCC.addEventListener("click", function () {
       var panel = document.getElementById("subPanel");
       if (!panel) return;
+      panel.classList.add("sub-open");
+      var tg = document.getElementById("subToggle");
+      if (tg) tg.setAttribute("aria-expanded", "true");
+      try { localStorage.setItem("np-sub-open", "1"); } catch (e) {}
       panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
       panel.classList.add("flash");
       setTimeout(function () { panel.classList.remove("flash"); }, 1200);
@@ -469,6 +473,24 @@
 
   // --- Subtitle: daftar trek sebagai baris yang bisa diklik, zona
   // ambil subtitle, dan alat lanjutan (gabung/sinkron) terlipat ---
+  // Panel subtitle bisa dilipat: di layar kecil bawaannya tertutup
+  // supaya halaman putar ringkas; pilihan manual pengguna diingat.
+  var subPanelEl = document.getElementById("subPanel");
+  var subToggleEl = document.getElementById("subToggle");
+  function setSubOpen(open, save) {
+    if (!subPanelEl) return;
+    subPanelEl.classList.toggle("sub-open", open);
+    if (subToggleEl) subToggleEl.setAttribute("aria-expanded", open ? "true" : "false");
+    if (save) { try { localStorage.setItem("np-sub-open", open ? "1" : "0"); } catch (e) {} }
+  }
+  if (subPanelEl && subToggleEl) {
+    var subPrefOpen = null;
+    try { subPrefOpen = localStorage.getItem("np-sub-open"); } catch (e) {}
+    setSubOpen(subPrefOpen !== null ? subPrefOpen === "1" : window.innerWidth >= 861, false);
+    subToggleEl.addEventListener("click", function () {
+      setSubOpen(!subPanelEl.classList.contains("sub-open"), true);
+    });
+  }
   var subTrackList = document.getElementById("subTrackList");
   var subActiveNote = document.getElementById("subActiveNote");
   var subStatus = document.getElementById("subStatus");

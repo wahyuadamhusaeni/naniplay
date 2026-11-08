@@ -317,6 +317,10 @@ type cinemaWatchData struct {
 	Key         string
 	Title       string
 	Sub         string
+	Meta        string
+	Overview    string
+	Fav         bool
+	Self        string
 	Poster      string
 	Back        string
 	BackText    string
@@ -331,11 +335,45 @@ type cinemaWatchData struct {
 
 // playCinema resolves the stream (the provider gate takes ~15 s)
 // and renders the shared player for one movie or episode.
-func (s *Server) playCinema(w http.ResponseWriter, r *http.Request, key string, encEp int, title, sub, poster, back, backText, ctype, contentID, next, prev string) {
+func metaJoin(parts ...string) string {
+	out := []string{}
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, " · ")
+}
+
+func durText(min int) string {
+	if min <= 0 {
+		return ""
+	}
+	if min >= 60 {
+		return fmt.Sprintf("%dj %dm", min/60, min%60)
+	}
+	return fmt.Sprintf("%d mnt", min)
+}
+
+func yearOf(date string) string {
+	if len(date) >= 4 {
+		return date[:4]
+	}
+	return ""
+}
+
+func ratingText(r idlix.Rating) string {
+	if f := r.Float(); f > 0 {
+		return "★ " + strconv.FormatFloat(f, 'f', 1, 64)
+	}
+	return ""
+}
+
+func (s *Server) playCinema(w http.ResponseWriter, r *http.Request, key string, encEp int, title, sub, meta, overview, poster, back, backText, ctype, contentID, next, prev string) {
 	data := cinemaWatchData{
-		baseData: s.base(), PrefQuality: s.qualityPref(), PrefSubLang: s.subPref(), Key: key, Title: title, Sub: sub, Poster: poster,
+		baseData: s.base(), PrefQuality: s.qualityPref(), PrefSubLang: s.subPref(), Key: key, Title: title, Sub: sub, Meta: meta, Overview: overview, Poster: poster,
 		Back: back, BackText: backText, Episode: encEp, Next: next, Prev: prev,
-		Server: "IDLIX",
+		Server: "IDLIX", Fav: s.db.IsFavorite(key), Self: r.URL.Path,
 	}
 	if saved, err := s.db.HistoryFor(key, encEp); err == nil && saved != nil {
 		data.SavedPos = saved.Position
@@ -364,7 +402,8 @@ func (s *Server) cinemaWatchMovie(w http.ResponseWriter, r *http.Request) {
 		s.renderNotFound(w)
 		return
 	}
-	s.playCinema(w, r, "movie:"+slug, 1, mv.Title, "", mv.Poster(), "/film/"+slug, mv.Title, "movie", mv.ID, "", "")
+	meta := metaJoin(yearOf(mv.ReleaseDate), durText(mv.Runtime), mv.Quality, ratingText(mv.Rating))
+	s.playCinema(w, r, "movie:"+slug, 1, mv.Title, "", meta, mv.Overview, mv.Poster(), "/film/"+slug, mv.Title, "movie", mv.ID, "", "")
 }
 
 func (s *Server) cinemaWatchSeries(w http.ResponseWriter, r *http.Request) {
@@ -404,7 +443,8 @@ func (s *Server) cinemaWatchSeries(w http.ResponseWriter, r *http.Request) {
 		sub += " — " + resp.Episode.Name
 	}
 	title := resp.Series.Title
-	s.playCinema(w, r, "series:"+slug, season*1000+epNum, title, sub, resp.Series.Poster(), "/series/"+slug, title, "episode", resp.Episode.ID, next, prev)
+	meta := metaJoin(yearOf(resp.Series.FirstAirDate), durText(resp.Episode.Runtime), ratingText(resp.Series.Rating))
+	s.playCinema(w, r, "series:"+slug, season*1000+epNum, title, sub, meta, resp.Series.Overview, resp.Series.Poster(), "/series/"+slug, title, "episode", resp.Episode.ID, next, prev)
 }
 
 // buildHeroSlides assembles the mixed home hero: top trending anime,

@@ -79,13 +79,40 @@
       </div>
     </div>
   </div>
-  <div class="player-meta dim">{{.Stream.Server}} · {{.Stream.SubLang}}</div>
-
-  <section class="sub-panel" id="subPanel">
-    <div class="sub-head">
-      <strong class="sub-label">Subtitle</strong>
-      <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
+  <div class="watch-info">
+    <img class="wi-poster" src="{{.Anime.Cover}}" alt="" loading="lazy">
+    <div class="wi-main">
+      <div class="wi-meta">
+        {{if .Anime.Score}}<span class="wi-score">★ {{.Anime.Score}}</span>{{end}}
+        {{if .Anime.SeasonYear}}<span>{{.Anime.SeasonYear}}</span>{{end}}
+        {{if .Anime.Format}}<span>{{.Anime.Format}}</span>{{end}}
+        {{if .Anime.Episodes}}<span>{{.Anime.Episodes}} Episode</span>{{end}}
+        {{if eq .Anime.Status "RELEASING"}}<span class="wi-badge">Sedang Tayang</span>{{end}}
+        <span class="wi-src">{{.ProviderName}}{{with .Stream}} · {{.Server}}{{end}}</span>
+      </div>
+      {{if .Anime.Description}}<p class="wi-desc clamp" id="wiDesc">{{.Anime.Description}}</p>
+      <button class="wi-more" id="wiMore" type="button">Baca selengkapnya</button>{{end}}
+      <div class="wi-actions">
+        <form method="post" action="/favorites/toggle">
+          <input type="hidden" name="media_key" value="anime:{{.Anime.ID}}">
+          <input type="hidden" name="title" value="{{.Anime.Display}}">
+          <input type="hidden" name="poster" value="{{.Anime.Cover}}">
+          <input type="hidden" name="return" value="/watch/{{.Anime.ID}}/{{.Episode}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">
+          <button class="btn {{if .Fav}}btn-play{{else}}btn-ghost{{end}}" type="submit">{{if .Fav}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+        </form>
+        <a class="btn btn-ghost" href="/anime/{{.Anime.ID}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">ⓘ Detail Anime</a>
+      </div>
+      {{if .Anime.Genres}}<div class="wi-genres">{{range .Anime.Genres}}<a class="chip" href="/genre/{{.}}">{{.}}</a>{{end}}</div>{{end}}
     </div>
+  </div>
+
+  <section class="sub-panel sub-open" id="subPanel">
+    <button class="sub-toggle" id="subToggle" type="button" aria-expanded="true">
+      <span class="sub-head-left"><svg class="sub-cc-ico"><use href="#i-cc"/></svg><strong class="sub-label">Subtitle</strong></span>
+      <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
+      <span class="sub-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="sub-body" id="subPanelBody">
     <div class="sub-tracks" id="subTrackList"></div>
     <div class="sub-get">
       <button type="button" id="subSearch" class="btn btn-play sub-search-btn">🔍 Cari Subtitle Online</button>
@@ -119,6 +146,7 @@
         <p class="dim small">Gabung: satukan dua trek (mis. Inggris + Indonesia) menjadi satu trek dwibahasa. Sinkronkan: geser otomatis timing trek aktif mengikuti trek referensi.</p>
       </div>
     </details>
+    </div>
   </section>
   <div class="watch-actions">
     {{if .PrevEp}}<a class="btn btn-ghost" href="/watch/{{.Anime.ID}}/{{.PrevEp}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">⏮ Episode {{.PrevEp}}</a>{{end}}
@@ -134,6 +162,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=16300"></script>
-<script src="/static/picker.js?v=16300"></script>
+<script src="/static/player.js?v=17000"></script>
+<script src="/static/picker.js?v=17000"></script>
 {{end}}

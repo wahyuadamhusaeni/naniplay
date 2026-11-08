@@ -83,6 +83,16 @@
 
 // Riwayat: hapus per judul & hapus semua (halaman Riwayat).
 (function () {
+  // Sinopsis di halaman putar: potong 3 baris, tombol membuka penuh.
+  var wiMore = document.getElementById("wiMore");
+  var wiDesc = document.getElementById("wiDesc");
+  if (wiMore && wiDesc) {
+    wiMore.addEventListener("click", function () {
+      var clamped = wiDesc.classList.toggle("clamp");
+      wiMore.textContent = clamped ? "Baca selengkapnya" : "Tutup";
+    });
+  }
+
   document.querySelectorAll("[data-delhist]").forEach(function (btn) {
     btn.addEventListener("click", function () {
       fetch("/api/history/delete", {

@@ -81,11 +81,32 @@
   </div>
   <div class="player-meta dim">{{.Server}} · sesi putar sekali pakai — memuat ulang halaman akan menyiapkan sesi baru (±15 detik)</div>
 
-  <section class="sub-panel" id="subPanel">
-    <div class="sub-head">
-      <strong class="sub-label">Subtitle</strong>
-      <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
+  <div class="watch-info">
+    <img class="wi-poster" src="{{.Poster}}" alt="" loading="lazy">
+    <div class="wi-main">
+      {{if .Meta}}<div class="wi-meta"><span>{{.Meta}}</span><span class="wi-src">IDLIX</span></div>{{end}}
+      {{if .Overview}}<p class="wi-desc clamp" id="wiDesc">{{.Overview}}</p>
+      <button class="wi-more" id="wiMore" type="button">Baca selengkapnya</button>{{end}}
+      <div class="wi-actions">
+        <form method="post" action="/favorites/toggle">
+          <input type="hidden" name="media_key" value="{{.Key}}">
+          <input type="hidden" name="title" value="{{.Title}}">
+          <input type="hidden" name="poster" value="{{.Poster}}">
+          <input type="hidden" name="return" value="{{.Self}}">
+          <button class="btn {{if .Fav}}btn-play{{else}}btn-ghost{{end}}" type="submit">{{if .Fav}}✓ Di Daftar Saya{{else}}＋ Daftar Saya{{end}}</button>
+        </form>
+        <a class="btn btn-ghost" href="{{.Back}}">ⓘ Detail</a>
+      </div>
     </div>
+  </div>
+
+  <section class="sub-panel sub-open" id="subPanel">
+    <button class="sub-toggle" id="subToggle" type="button" aria-expanded="true">
+      <span class="sub-head-left"><svg class="sub-cc-ico"><use href="#i-cc"/></svg><strong class="sub-label">Subtitle</strong></span>
+      <span class="sub-active-note" id="subActiveNote">Tanpa subtitle</span>
+      <span class="sub-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="sub-body" id="subPanelBody">
     <div class="sub-tracks" id="subTrackList"></div>
     <div class="sub-get">
       <button type="button" id="subSearch" class="btn btn-play sub-search-btn">🔍 Cari Subtitle Online</button>
@@ -119,6 +140,7 @@
         <p class="dim small">Gabung: satukan dua trek (mis. Inggris + Indonesia) menjadi satu trek dwibahasa. Sinkronkan: geser otomatis timing trek aktif mengikuti trek referensi.</p>
       </div>
     </details>
+    </div>
   </section>
   <div class="watch-actions">
     {{if .Prev}}<a class="btn btn-ghost" href="{{.Prev}}">⏮ Episode sebelumnya</a>{{end}}
@@ -129,5 +151,5 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=16300"></script>
+<script src="/static/player.js?v=17000"></script>
 {{end}}

@@ -647,3 +647,31 @@ body.no-scroll { overflow: hidden; }
 
 /* v1.6.3: teks alt gambar yang gagal/dilambatkan tidak meluber keluar kotak */
 .card-img img, .sched-row img, .detail-side img { font-size: 0; background: #232323; }
+
+/* v1.7.0: blok info "sedang diputar" + panel subtitle lipat */
+.watch-info { display: flex; gap: 1rem; margin-top: 1.1rem; }
+.wi-poster { width: 86px; height: 122px; object-fit: cover; border-radius: 10px; flex: none; background: #232323; font-size: 0; }
+.wi-main { flex: 1; min-width: 0; }
+.wi-meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; color: #b3b3b3; font-size: .88rem; }
+.wi-score { color: #46d369; font-weight: 700; }
+.wi-badge { background: #e50914; color: #fff; padding: .1rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+.wi-src { color: #8a8a8a; }
+.wi-desc { color: #d7d7d7; line-height: 1.55; margin: .55rem 0 .15rem; max-width: 78ch; }
+.wi-desc.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wi-more { background: none; border: 0; color: #fff; font-weight: 600; cursor: pointer; padding: .15rem 0; font-size: .88rem; }
+.wi-more:hover { text-decoration: underline; }
+.wi-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .7rem; align-items: center; }
+.wi-actions form { margin: 0; }
+.wi-genres { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .7rem; }
+.wi-genres a { text-decoration: none; color: #e5e5e5; }
+.wi-genres a:hover { background: rgba(255,255,255,.25); }
+@media (max-width: 560px) { .wi-poster { width: 62px; height: 88px; } .watch-info { gap: .75rem; } }
+.sub-panel { padding: 0; overflow: hidden; }
+.sub-toggle { display: flex; align-items: center; gap: .8rem; width: 100%; background: none; border: 0; color: #fff; cursor: pointer; padding: .95rem 1.1rem; text-align: left; font: inherit; }
+.sub-head-left { display: flex; align-items: center; gap: .55rem; flex: none; }
+.sub-cc-ico { width: 22px; height: 22px; fill: #fff; }
+.sub-toggle .sub-active-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b3b3b3; font-size: .88rem; }
+.sub-chev { transition: transform .2s; color: #b3b3b3; flex: none; }
+.sub-panel.sub-open .sub-chev { transform: rotate(180deg); }
+.sub-body { display: none; padding: 0 1.1rem 1.1rem; }
+.sub-panel.sub-open .sub-body { display: block; }

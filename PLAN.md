@@ -180,3 +180,4 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 - [x] v1.6.1: perbaiki lomba event ketuk-vs-klik pada kontrol pemutar (keputusan dari pointerdown), kontrol menetap saat pause, HTML no-cache, tumpukan kartu episode berikutnya vs tombol skip
 - [x] v1.6.2: penjaga SSRF proxy (validasi IP di lapisan dial), soft-404 terakhir dibereskan; audit XSS panel subtitle & resume dinyatakan bersih
 - [x] v1.6.3: audit ganda (kode + browser live) — yatim terjemahan sinema, panic merge/autosync, bocor kunci via tes koneksi, kepemilikan autosync, SSRF pengambil subtitle, subtitle ganda hardsub, dedupe trek, cache AniList terbatas
+- [x] v1.7.0: UX halaman putar — panel subtitle lipat (bawaan tertutup di HP, diingat) + blok info sedang diputar (poster, meta, sinopsis, Daftar Saya, genre) untuk anime & sinema
