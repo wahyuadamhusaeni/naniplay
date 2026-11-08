@@ -4,6 +4,15 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.9.2] — 2026-11-08
+
+### Diperbaiki
+- Mode embed terproksi membalas 502 untuk aset dari host IP polos:
+  klien polosnya menolak sertifikat upstream yang memang tidak
+  mencakup alamat IP-nya. Kini memakai varian klien terjaga dengan
+  verifikasi TLS dimatikan khusus untuk jalur ini (penjaga dial
+  SSRF tetap berlaku).
+
 ## [1.9.1] — 2026-11-08
 
 ### Diubah

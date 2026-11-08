@@ -7,6 +7,7 @@ package proxy
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -63,6 +64,15 @@ func guardedTransport() *http.Transport {
 // of URLs that are not fully trusted.
 func GuardedClient(timeout time.Duration) *http.Client {
 	return &http.Client{Timeout: timeout, Transport: guardedTransport()}
+}
+
+// GuardedClientSkipVerify is GuardedClient with TLS verification
+// disabled, for upstreams whose certificates cannot cover their
+// address (bare-IP player hosts). The dial guard still applies.
+func GuardedClientSkipVerify(timeout time.Duration) *http.Client {
+	tr := guardedTransport()
+	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // upstream bersertifikat tak-tercakup, dial tetap terjaga
+	return &http.Client{Timeout: timeout, Transport: tr}
 }
 
 // Handler returns the /api/proxy handler. Query params: u (target URL),

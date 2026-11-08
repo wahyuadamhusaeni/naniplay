@@ -153,7 +153,7 @@ func (s *Server) indoEmbedRaw(w http.ResponseWriter, r *http.Request) {
 	if rng := r.Header.Get("Range"); rng != "" {
 		req.Header.Set("Range", rng)
 	}
-	resp, err := proxy.GuardedClient(60 * time.Second).Do(req)
+	resp, err := proxy.GuardedClientSkipVerify(60 * time.Second).Do(req)
 	if err != nil {
 		http.Error(w, "Upstream tidak terjangkau: "+err.Error(), http.StatusBadGateway)
 		return
