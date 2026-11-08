@@ -63,13 +63,15 @@ func epLabel(h store.HistoryEntry) string {
 // favView / histView wrap store rows with their URLs for templates.
 type favView struct {
 	store.Favorite
-	Href string
+	Href      string
+	NextLabel string
 }
 
 type histView struct {
 	store.HistoryEntry
-	Href    string
-	EpLabel string
+	Href      string
+	EpLabel   string
+	NextLabel string
 }
 
 func favViews(favs []store.Favorite) []favView {

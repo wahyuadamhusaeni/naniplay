@@ -17,22 +17,23 @@ const endpoint = "https://graphql.anilist.co"
 
 // Anime is the subset of AniList Media fields NaniPlay renders.
 type Anime struct {
-	ID          int      `json:"id"`
-	IDMal       int      `json:"idMal"`
-	Title       Title    `json:"title"`
-	Cover       string   // coverImage.extraLarge
-	Banner      string   // bannerImage
-	Score       int      `json:"averageScore"`
-	SeasonYear  int      `json:"seasonYear"`
-	Season      string   `json:"season"`
-	Format      string   `json:"format"`
-	Episodes    int      `json:"episodes"`
-	Duration    int      `json:"duration"` // minutes per episode
-	Status      string   `json:"status"`
-	Genres      []string `json:"genres"`
-	Description string   `json:"description"`
-	Studio      string   // main studio name
-	NextEpisode int      // next airing episode number, 0 if none
+	ID           int      `json:"id"`
+	IDMal        int      `json:"idMal"`
+	Title        Title    `json:"title"`
+	Cover        string   // coverImage.extraLarge
+	Banner       string   // bannerImage
+	Score        int      `json:"averageScore"`
+	SeasonYear   int      `json:"seasonYear"`
+	Season       string   `json:"season"`
+	Format       string   `json:"format"`
+	Episodes     int      `json:"episodes"`
+	Duration     int      `json:"duration"` // minutes per episode
+	Status       string   `json:"status"`
+	Genres       []string `json:"genres"`
+	Description  string   `json:"description"`
+	Studio       string   // main studio name
+	NextEpisode  int      // next airing episode number, 0 if none
+	NextAiringAt int64    // unix seconds of the next airing, 0 if none
 }
 
 // Title holds the AniList title variants.
@@ -73,7 +74,8 @@ type mediaRaw struct {
 		} `json:"nodes"`
 	} `json:"studios"`
 	NextAiring *struct {
-		Episode int `json:"episode"`
+		Episode  int   `json:"episode"`
+		AiringAt int64 `json:"airingAt"`
 	} `json:"nextAiringEpisode"`
 }
 
@@ -89,6 +91,7 @@ func (m mediaRaw) toAnime() Anime {
 	}
 	if m.NextAiring != nil {
 		a.NextEpisode = m.NextAiring.Episode
+		a.NextAiringAt = m.NextAiring.AiringAt
 	}
 	return a
 }
@@ -146,7 +149,7 @@ const mediaFields = `
   genres
   description(asHtml: false)
   studios(isMain: true) { nodes { name } }
-  nextAiringEpisode { episode }
+  nextAiringEpisode { episode airingAt }
 `
 
 type gqlResponse struct {

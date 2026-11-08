@@ -504,6 +504,92 @@ func (s *Server) apiSubtitleTranslate(w http.ResponseWriter, r *http.Request) {
 }
 
 // apiSubtitleDelete removes a saved track.
+// apiSubtitleMerge combines the addressed track with another track
+// of the same episode into a new bilingual track.
+func (s *Server) apiSubtitleMerge(w http.ResponseWriter, r *http.Request) {
+	track, err := s.db.SubtitleTrack(r.PathValue("trackID"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek tidak ditemukan"})
+		return
+	}
+	var body struct {
+		OtherID string `json:"otherId"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || body.OtherID == "" || body.OtherID == track.ID {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "pilih trek kedua yang berbeda"})
+		return
+	}
+	other, err := s.db.SubtitleTrack(body.OtherID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek kedua tidak ditemukan"})
+		return
+	}
+	if other.Key != track.Key || other.Episode != track.Episode {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "kedua trek harus dari episode yang sama"})
+		return
+	}
+	a, err1 := subtitle.Parse(track.Content)
+	b, err2 := subtitle.Parse(other.Content)
+	if err1 != nil || err2 != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "isi trek tidak terbaca sebagai subtitle"})
+		return
+	}
+	merged := subtitle.MergeCues(a, b)
+	key := track.Key
+	if key == "" {
+		key = store.AnimeKey(track.AnilistID)
+	}
+	s.saveTrackKey(w, key, track.Episode, track.Label+" + "+other.Label, track.Lang, "merge", subtitle.ToVTT(merged, 0))
+}
+
+// apiSubtitleAutosync estimates the addressed track's timing offset
+// against a reference track and, when a real offset (>= 0.25 s) is
+// found, saves a corrected copy. The response reports the estimate.
+func (s *Server) apiSubtitleAutosync(w http.ResponseWriter, r *http.Request) {
+	track, err := s.db.SubtitleTrack(r.PathValue("trackID"))
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek tidak ditemukan"})
+		return
+	}
+	var body struct {
+		ReferenceID string `json:"referenceId"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil || body.ReferenceID == "" || body.ReferenceID == track.ID {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "pilih trek referensi yang berbeda"})
+		return
+	}
+	ref, err := s.db.SubtitleTrack(body.ReferenceID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "trek referensi tidak ditemukan"})
+		return
+	}
+	refCues, err1 := subtitle.Parse(ref.Content)
+	tgtCues, err2 := subtitle.Parse(track.Content)
+	if err1 != nil || err2 != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": "isi trek tidak terbaca sebagai subtitle"})
+		return
+	}
+	off := subtitle.EstimateOffset(refCues, tgtCues)
+	if off > -0.25 && off < 0.25 {
+		writeJSON(w, http.StatusOK, map[string]any{"offset": off, "applied": false})
+		return
+	}
+	key := track.Key
+	if key == "" {
+		key = store.AnimeKey(track.AnilistID)
+	}
+	label := track.Label + fmt.Sprintf(" (sinkron %+.1f dtk)", off)
+	t := store.SubtitleTrack{
+		ID: newTrackID(), Key: key, AnilistID: track.AnilistID, Episode: track.Episode,
+		Label: label, Lang: track.Lang, Source: "autosync", Content: subtitle.ToVTT(tgtCues, off),
+	}
+	if err := s.db.SaveSubtitleTrack(t); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"offset": off, "applied": true, "id": t.ID, "label": t.Label})
+}
+
 func (s *Server) apiSubtitleDelete(w http.ResponseWriter, r *http.Request) {
 	if err := s.db.DeleteSubtitleTrack(r.PathValue("trackID")); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})

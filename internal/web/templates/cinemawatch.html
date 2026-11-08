@@ -66,6 +66,11 @@
       <input type="url" id="subUrl" placeholder="atau tempel URL file subtitle…">
       <button type="button" id="subUrlBtn" class="btn btn-ghost">Ambil URL</button>
     </div>
+    <div class="sub-row">
+      <select id="subMergeSel"><option value="">Trek kedua / referensi…</option></select>
+      <button type="button" id="subMergeBtn" class="btn btn-ghost">⿻ Gabung ke Trek Aktif</button>
+      <button type="button" id="subSyncBtn" class="btn btn-ghost">🎯 Sinkronkan ke Referensi</button>
+    </div>
     <div id="subResults" class="sub-results"></div>
     <p class="dim small" id="subStatus"></p>
   </section>
@@ -78,5 +83,5 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=1200"></script>
+<script src="/static/player.js?v=10000"></script>
 {{end}}

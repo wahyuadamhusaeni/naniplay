@@ -65,7 +65,7 @@ publik situs sumber yang dipelajari, bukan kode proyek lain.
 - [x] Jadwal rilis mingguan (AniList airing schedule) *(selesai lebih awal, di v0.2.0)*
 - [x] Jelajah genre (daftar per genre AniList + penomoran halaman) *(v0.8.0)*
 - [x] Pemain kustom (menu kualitas, PiP, pintasan keyboard), pemilihan sumber manual, pemilih episode cerdas, drawer mobile *(v0.8.0, masukan pengguna)*
-- [ ] Episode mendatang untuk anime di Daftar Saya/Riwayat
+- [x] Episode mendatang untuk anime di Daftar Saya/Riwayat *(v1.0.0)*
 
 ## Fase 5 — Sinema: Gabung Film & Series IDLIX *(keputusan 2026-11-08)*
 
@@ -123,8 +123,8 @@ Temuan kunci yang membuat fase ini mungkin (terverifikasi 2026-11-08):
 
 ### v1.0.0 — Penyempurnaan
 
-- [ ] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)*
-- [ ] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis
+- [x] Episode mendatang untuk judul di Daftar Saya/Riwayat *(sisa Fase 4)* *(v1.0.0)*
+- [x] Gabung dua trek subtitle menjadi satu *(sisa Fase 2)* + desync otomatis *(v1.0.0)*
 
 ## Nanti (belum terjadwal)
 

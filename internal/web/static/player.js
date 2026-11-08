@@ -331,13 +331,24 @@
   function renderSaved(saved) {
     var current = subSelect.value;
     subSelect.innerHTML = '<option value="">Tanpa subtitle</option>';
+    var mergeSel = document.getElementById("subMergeSel");
+    var mergeCur = mergeSel ? mergeSel.value : "";
+    if (mergeSel) mergeSel.innerHTML = '<option value="">Trek kedua / referensi…</option>';
     (saved || []).forEach(function (t) {
+      var label = t.label + (t.lang ? " [" + t.lang.toUpperCase() + "]" : "") + " · " + t.source;
       var o = document.createElement("option");
       o.value = t.id;
-      o.textContent = t.label + (t.lang ? " [" + t.lang.toUpperCase() + "]" : "") + " · " + t.source;
+      o.textContent = label;
       subSelect.appendChild(o);
+      if (mergeSel) {
+        var o2 = document.createElement("option");
+        o2.value = t.id;
+        o2.textContent = label;
+        mergeSel.appendChild(o2);
+      }
     });
     if (current) subSelect.value = current;
+    if (mergeSel && mergeCur) mergeSel.value = mergeCur;
   }
   function loadSubtitles() {
     return fetch(subBase)
@@ -371,6 +382,34 @@
       subOffset = Math.min(120, Math.round((subOffset + 0.5) * 10) / 10);
       subFmtOffset();
       if (subActiveId) activateSub(subActiveId);
+    });
+    var subMergeBtn = document.getElementById("subMergeBtn");
+    var subSyncBtn = document.getElementById("subSyncBtn");
+    var subMergeSel = document.getElementById("subMergeSel");
+    if (subMergeBtn) subMergeBtn.addEventListener("click", function () {
+      var a = subSelect.value, b = subMergeSel ? subMergeSel.value : "";
+      if (!a || !b || a === b) { subSay("Pilih dulu trek aktif dan trek kedua yang berbeda."); return; }
+      subSay("Menggabungkan trek…");
+      fetch("/api/subtitles/track/" + a + "/merge", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otherId: b })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.id) { subSay("Trek gabungan dibuat dan diaktifkan."); activateById(d.id); }
+        else subSay(d.error || "Gabung gagal.");
+      }).catch(function () { subSay("Gabung gagal: jaringan."); });
+    });
+    if (subSyncBtn) subSyncBtn.addEventListener("click", function () {
+      var a = subSelect.value, b = subMergeSel ? subMergeSel.value : "";
+      if (!a || !b || a === b) { subSay("Pilih dulu trek aktif dan trek referensi yang berbeda."); return; }
+      subSay("Menghitung selisih timing…");
+      fetch("/api/subtitles/track/" + a + "/autosync", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referenceId: b })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.applied) { subSay("Offset " + d.offset.toFixed(1) + " detik diterapkan — trek hasil sinkron diaktifkan."); activateById(d.id); }
+        else if (typeof d.offset === "number") subSay("Trek tampaknya sudah sinkron (selisih " + d.offset.toFixed(2) + " dtk).");
+        else subSay(d.error || "Sinkron gagal.");
+      }).catch(function () { subSay("Sinkron gagal: jaringan."); });
     });
     subTranslateAI.addEventListener("click", function () {
       if (!subActiveId) return;

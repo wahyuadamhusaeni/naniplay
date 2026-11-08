@@ -14,6 +14,7 @@
         {{if .Status}}<span>{{.Status}}</span>{{end}}
         {{if .Studio}}<span>{{.Studio}}</span>{{end}}
       </p>
+      {{if .NextLabel}}<p class="next-air">📅 Episode berikutnya: {{.NextLabel}}</p>{{end}}
       {{if .Genres}}<p class="genres">{{range .Genres}}<a class="chip chip-link" href="/genre/{{.}}">{{.}}</a>{{end}}</p>{{end}}
       <p class="hero-desc">{{.Description}}</p>
       <div class="hero-actions">
@@ -56,4 +57,4 @@
   {{if .Episodes}}{{template "eppicker" .}}{{end}}
 </section>
 {{end}}
-{{define "scripts"}}<script src="/static/picker.js?v=1200"></script>{{end}}
+{{define "scripts"}}<script src="/static/picker.js?v=10000"></script>{{end}}

@@ -4,6 +4,28 @@ Semua perubahan penting NaniPlay dicatat di sini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/),
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [1.0.0] — 2026-11-08
+
+Rilis 1.0: NaniPlay lengkap untuk web (mobile & desktop) dan Windows —
+satu aplikasi untuk anime, film, dan series, dengan subtitle
+Indonesia sebagai fokusnya. (Mode TV dan aplikasi Android secara
+eksplisit di luar rencana; lihat PLAN.md.)
+
+### Ditambahkan
+- **Episode Mendatang**: judul anime yang sedang tayang di Daftar
+  Saya, Riwayat, dan halaman detail kini menampilkan episode
+  berikutnya beserta hari/tanggal/jam tayangnya (WIB), dari data
+  airing AniList.
+- **Gabung dua trek subtitle**: tombol "Gabung ke Trek Aktif" di
+  panel subtitle menggabungkan trek aktif dengan trek kedua dari
+  episode yang sama menjadi satu trek dwibahasa (baris sekunder
+  menempel pada jendela cue primer; sisa sekunder berdiri sendiri).
+- **Sinkron otomatis (desync)**: tombol "Sinkronkan ke Referensi"
+  mengestimasi selisih timing trek aktif terhadap trek referensi
+  (histogram selisih awal cue, resolusi 0,25 detik, rentang ±30
+  detik) dan menyimpan salinan terkoreksi bila selisihnya nyata
+  (≥0,25 detik).
+
 ## [0.12.0] — 2026-11-08
 
 ### Ditambahkan

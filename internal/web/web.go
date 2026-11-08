@@ -166,6 +166,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/subtitles/{id}/{ep}/upload", s.apiSubtitleUpload)
 	mux.HandleFunc("GET /api/subtitles/track/{trackID}", s.apiSubtitleTrack)
 	mux.HandleFunc("POST /api/subtitles/track/{trackID}/translate", s.apiSubtitleTranslate)
+	mux.HandleFunc("POST /api/subtitles/track/{trackID}/merge", s.apiSubtitleMerge)
+	mux.HandleFunc("POST /api/subtitles/track/{trackID}/autosync", s.apiSubtitleAutosync)
 	mux.HandleFunc("POST /api/subtitles/track/{trackID}/translate-llm", s.apiSubtitleTranslateAI)
 	mux.HandleFunc("DELETE /api/subtitles/track/{trackID}", s.apiSubtitleDelete)
 	mux.HandleFunc("GET /api/health", s.apiHealth)
@@ -311,6 +313,7 @@ type detailData struct {
 	ProviderName string      // display name of the resolved provider
 	PagePath     string      // canonical path of this page (for source chips)
 	CurrentEp    int         // episode to highlight in the picker (continue point)
+	NextLabel    string      // next-airing episode info, "" if none
 	Watched      map[int]int // episode -> watched percent
 }
 
@@ -329,6 +332,7 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 	data := detailData{
 		baseData:   s.base(),
 		Anime:      a,
+		NextLabel:  nextLabel(a),
 		IsFavorite: s.db.IsFavorite(store.AnimeKey(id)),
 		SrcSel:     forced,
 		PagePath:   fmt.Sprintf("/anime/%d", id),
@@ -626,6 +630,70 @@ func (s *Server) searchPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "search", data)
 }
 
+// nextLabel formats an anime's next-airing info for badges, e.g.
+// "Ep 12 · Sabtu, 15 November 2026 · 22:30 WIB" ("" when none).
+func nextLabel(a *anilist.Anime) string {
+	if a == nil || a.NextEpisode == 0 || a.NextAiringAt == 0 {
+		return ""
+	}
+	t := time.Unix(a.NextAiringAt, 0).In(wib)
+	return fmt.Sprintf("Ep %d · %s, %d %s %d · %02d:%02d WIB",
+		a.NextEpisode, dayNames[t.Weekday()], t.Day(), monthNames[t.Month()], t.Year(), t.Hour(), t.Minute())
+}
+
+// fillNextLabels enriches list views with next-episode info for
+// anime entries (favorites/history), fetched in parallel with a
+// bounded timeout; failures simply leave labels empty.
+func (s *Server) fillNextLabels(r *http.Request, favs []favView, hist []histView) {
+	ids := map[int]bool{}
+	collect := func(key string) {
+		if id, ok := store.ParseAnimeKey(key); ok {
+			ids[id] = true
+		}
+	}
+	for _, f := range favs {
+		collect(f.Key)
+	}
+	for _, h := range hist {
+		collect(h.Key)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	labels := map[int]string{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 6)
+	for id := range ids {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			if a, err := s.anilist.Detail(ctx, id); err == nil {
+				if lbl := nextLabel(a); lbl != "" {
+					mu.Lock()
+					labels[id] = lbl
+					mu.Unlock()
+				}
+			}
+		}(id)
+	}
+	wg.Wait()
+	for i := range favs {
+		if id, ok := store.ParseAnimeKey(favs[i].Key); ok {
+			favs[i].NextLabel = labels[id]
+		}
+	}
+	for i := range hist {
+		if id, ok := store.ParseAnimeKey(hist[i].Key); ok {
+			hist[i].NextLabel = labels[id]
+		}
+	}
+}
+
 type listData struct {
 	baseData
 	Title     string
@@ -635,14 +703,18 @@ type listData struct {
 
 func (s *Server) myList(w http.ResponseWriter, r *http.Request) {
 	favs, _ := s.db.Favorites()
+	views := favViews(favs)
+	s.fillNextLabels(r, views, nil)
 	s.render(w, "list", listData{
-		baseData: s.base(), Title: "Daftar Saya", Favorites: favViews(favs)})
+		baseData: s.base(), Title: "Daftar Saya", Favorites: views})
 }
 
 func (s *Server) historyPage(w http.ResponseWriter, r *http.Request) {
 	hist, _ := s.db.AllHistory(60)
+	views := histViews(hist)
+	s.fillNextLabels(r, nil, views)
 	s.render(w, "list", listData{
-		baseData: s.base(), Title: "Riwayat Tontonan", History: histViews(hist)})
+		baseData: s.base(), Title: "Riwayat Tontonan", History: views})
 }
 
 // ---------- actions & API ----------
