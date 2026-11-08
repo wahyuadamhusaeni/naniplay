@@ -675,3 +675,13 @@ body.no-scroll { overflow: hidden; }
 .sub-panel.sub-open .sub-chev { transform: rotate(180deg); }
 .sub-body { display: none; padding: 0 1.1rem 1.1rem; }
 .sub-panel.sub-open .sub-body { display: block; }
+
+/* v1.7.1: pemilih sumber di halaman detail diturunkan jadi tautan teks
+   yang tenang (bukan lagi tombol pil besar); halaman putar bersih. */
+.src-picker { gap: .3rem .55rem; margin: .35rem 0 .9rem; }
+.src-label { font-size: .84rem; font-weight: 500; }
+.src-chip { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: .18rem .1rem; font-size: .88rem; font-weight: 500; color: #9a9a9a; }
+.src-chip:hover { color: #fff; border-color: #666; }
+.src-chip.active { background: none; border-color: var(--red); color: #fff; font-weight: 700; }
+.alert-actions { margin-top: .5rem; font-size: .9rem; }
+.alert-actions a { color: #fff; font-weight: 600; }

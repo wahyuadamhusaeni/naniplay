@@ -4,9 +4,15 @@
   <a class="back-link" href="/anime/{{.Anime.ID}}{{if .SrcSel}}?src={{.SrcSel}}{{end}}">← {{.Anime.Display}}</a>
   <h1 class="watch-title">{{.Anime.Display}} <span class="dim">— Episode {{.Episode}}</span></h1>
 
-  {{template "srcchips" .}}
   {{if .SourceErr}}
-    <div class="alert">{{.SourceErr}}</div>
+    <div class="alert">{{.SourceErr}}
+      <div class="alert-actions">Coba sumber lain:
+        <a href="/watch/{{.Anime.ID}}/{{.Episode}}?src=otakudesu">Otakudesu</a> ·
+        <a href="/watch/{{.Anime.ID}}/{{.Episode}}?src=hianime">HiAnime</a> ·
+        <a href="/watch/{{.Anime.ID}}/{{.Episode}}?src=anichan">AniChan</a> ·
+        <a href="/watch/{{.Anime.ID}}/{{.Episode}}">Otomatis</a>
+      </div>
+    </div>
   {{else}}
   <div class="player-box" id="playerBox">
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -162,6 +168,6 @@
 {{end}}
 {{define "scripts"}}
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
-<script src="/static/player.js?v=17000"></script>
-<script src="/static/picker.js?v=17000"></script>
+<script src="/static/player.js?v=17100"></script>
+<script src="/static/picker.js?v=17100"></script>
 {{end}}
